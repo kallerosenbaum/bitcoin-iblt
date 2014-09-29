@@ -10,8 +10,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-
 public class Coder {
     NetworkParameters params;
     byte[] salt;
@@ -23,13 +21,12 @@ public class Coder {
 
     public Map<LongData, LongData> encodeTransaction(Transaction transaction) {
         Map<LongData, LongData> map = new HashMap<LongData, LongData>();
-
-        assertEquals(256 / 8, salt.length);
+        if (salt.length != 256/8) {
+            throw new RuntimeException("Bad salt length! Must be 32, but was  " + salt.length);
+        }
         byte[] transactionId = transaction.getHash().getBytes();
         byte[] key = Arrays.copyOf(transactionId, transactionId.length + salt.length);
-        for (int i = 0; i < salt.length; i++) {
-            key[transactionId.length + i] = salt[i];
-        }
+        System.arraycopy(salt, 0, key, transactionId.length, salt.length);
         key = Sha256Hash.create(key).getBytes();
 
         byte[] keyBytes = Arrays.copyOfRange(key, 0, 8); // 64 first bits (the last to bytes will be overwritten by counter
@@ -59,13 +56,10 @@ public class Coder {
             long value = entry.getValue().getValue();
             byte[] valueBytes = ByteBuffer.allocate(8).putLong(value).array();
 
-            for (int i = 0; i < 8; i++) {
-                txBytes[keyCounter*8+i] = valueBytes[i];
-            }
+            System.arraycopy(valueBytes, 0, txBytes, keyCounter * 8, 8);
         }
 
         return new Transaction(params, txBytes);
-
     }
 
 }

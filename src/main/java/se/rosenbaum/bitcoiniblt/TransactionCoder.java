@@ -10,11 +10,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Coder {
+public class TransactionCoder {
     NetworkParameters params;
     byte[] salt;
 
-    public Coder(NetworkParameters params, byte[] salt) {
+    public TransactionCoder(NetworkParameters params, byte[] salt) {
         this.params = params;
         this.salt = salt;
     }

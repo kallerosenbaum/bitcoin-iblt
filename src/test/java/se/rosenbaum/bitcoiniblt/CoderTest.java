@@ -12,6 +12,7 @@ import static org.easymock.EasyMock.expect;
 
 public class CoderTest extends EasyMockSupport {
     private static final String ZERO = "0000000000000000000000000000000000000000000000000000000000000000";
+    private int hashValue = 0;
 
     public Sha256Hash createHash(String shortVersion) {
         String hash64 = ZERO.substring(0, ZERO.length() - shortVersion.length()) + shortVersion;
@@ -27,6 +28,7 @@ public class CoderTest extends EasyMockSupport {
             inputs.add(input);
         }
         expect(t1.getInputs()).andReturn(inputs).anyTimes();
+        expect(t1.getHash()).andReturn(createHash("" + hashValue++));
         return t1;
     }
 }

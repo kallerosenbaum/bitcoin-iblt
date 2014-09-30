@@ -1,6 +1,7 @@
 package se.rosenbaum.bitcoiniblt;
 
 import com.google.bitcoin.core.Block;
+import com.google.bitcoin.core.Sha256Hash;
 import com.google.bitcoin.core.Transaction;
 import com.google.bitcoin.core.TransactionInput;
 import se.rosenbaum.iblt.IBLT;
@@ -35,10 +36,65 @@ public class BlockCoder {
     }
 
     Iterator<Transaction> iterator(List<Transaction> list) {
-                 return null;
+        List<Transaction> sideList = new ArrayList<Transaction>();
+
+        for (int i = 0; i < list.size(); i++) {
+            Transaction transaction = list.get(i);
+            for (int j = i + 1; j < list.size(); j++) {
+                if (dependsOn(transaction, list.get(j))) {
+                    sideList.add(transaction);
+                }
+            }
+        }
     }
 
-    boolean dependsOn(Transaction t1, Transaction t2) {
+    private class TransactionIterator implements Iterator<Transaction> {
+        List<Transaction> sideList = new ArrayList<Transaction>();
+        List<Transaction> list;
+        private int index = 0;
+
+        private TransactionIterator(List<Transaction> list) {
+            this.list = list;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return !sideList.isEmpty() || index >= list.size();
+        }
+
+        @Override
+        public Transaction next() {
+            Transaction transaction;
+
+            boolean found = false;
+            while (!found) {
+                if (!sideList.isEmpty()) {
+                    for (int i = 1; i < sideList.size(); i++) {
+
+                    }
+                }
+            }
+            transaction = list.get(index);
+            for (int j = i + 1; j < list.size(); j++) {
+                if (dependsOn(transaction, list.get(j))) {
+                    sideList.add(transaction);
+                }
+            }
+            return false;  //To change body of implemented methods use File | Settings | File Templates.
+        }
+
+        @Override
+        public void remove() {
+        }
+    }
+
+    boolean dependsOn(Transaction dependant, Transaction dependee) {
+        Sha256Hash dependeeHash = dependee.getHash();
+        for (TransactionInput input : dependant.getInputs()) {
+            if (input.getHash().equals(dependeeHash)) {
+                return true;
+            }
+        }
         return false;
     }
 

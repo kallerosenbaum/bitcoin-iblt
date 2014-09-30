@@ -1,28 +1,32 @@
 package se.rosenbaum.bitcoiniblt;
 
-import com.google.bitcoin.core.Block;
-import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.Sha256Hash;
-import com.google.bitcoin.kits.WalletAppKit;
-import com.google.bitcoin.params.TestNet3Params;
-import org.junit.Test;
+import com.google.bitcoin.core.Transaction;
+import com.google.bitcoin.core.TransactionInput;
+import org.easymock.EasyMockSupport;
 
-import java.io.File;
-import java.util.concurrent.ExecutionException;
+import java.util.ArrayList;
+import java.util.List;
 
-public abstract class CoderTest {
-    protected byte[] salt;
-    NetworkParameters params;Block block;
+import static org.easymock.EasyMock.expect;
 
-    @Test
-    public void setup() throws ExecutionException, InterruptedException {
-        params = new TestNet3Params();
-        WalletAppKit walletAppKit = new WalletAppKit(params, new File(System.getProperty("java.io.tmpdir")), "iblt");
-        walletAppKit.startAndWait();
-        Sha256Hash blockHash = new Sha256Hash("00000000e4a728571997c669c52425df5f529dd370fa9164c64fd60a49e245c4");
-        block = walletAppKit.peerGroup().getDownloadPeer().getBlock(blockHash).get();
+public class CoderTest extends EasyMockSupport {
+    private static final String ZERO = "0000000000000000000000000000000000000000000000000000000000000000";
 
-        salt = new byte[256/8];
-        salt[14] = -45;
+    public Sha256Hash createHash(String shortVersion) {
+        String hash64 = ZERO.substring(0, ZERO.length() - shortVersion.length()) + shortVersion;
+        return new Sha256Hash(hash64);
+    }
+
+    public Transaction t(String... hashes) {
+        Transaction t1 = createMock(Transaction.class);
+        List<TransactionInput> inputs = new ArrayList<TransactionInput>();
+        for (String hash : hashes) {
+            TransactionInput input = createMock(TransactionInput.class);
+            expect(input.getHash()).andReturn(createHash(hash)).anyTimes();
+            inputs.add(input);
+        }
+        expect(t1.getInputs()).andReturn(inputs).anyTimes();
+        return t1;
     }
 }

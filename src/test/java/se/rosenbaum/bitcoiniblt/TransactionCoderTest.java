@@ -1,13 +1,7 @@
 package se.rosenbaum.bitcoiniblt;
 
-import com.google.bitcoin.core.Block;
-import com.google.bitcoin.core.NetworkParameters;
-import com.google.bitcoin.core.Sha256Hash;
 import com.google.bitcoin.core.Transaction;
-import com.google.bitcoin.kits.WalletAppKit;
-import com.google.bitcoin.params.TestNet3Params;
 import com.google.bitcoin.store.BlockStoreException;
-import com.google.common.util.concurrent.ListenableFuture;
 import org.junit.Test;
 import se.rosenbaum.iblt.Cell;
 import se.rosenbaum.iblt.IBLT;
@@ -16,14 +10,13 @@ import se.rosenbaum.iblt.data.LongData;
 import se.rosenbaum.iblt.hash.LongDataHashFunction;
 import se.rosenbaum.iblt.hash.LongDataSubtablesHashFunctions;
 
-import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
 
-public class TransactionCoderTest extends CoderTest {
+public class TransactionCoderTest extends ClientCoderTest {
     LongDataHashFunction cellHashFunction = new LongDataHashFunction();
 
     private LongData data(long value) {

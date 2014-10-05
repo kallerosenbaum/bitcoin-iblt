@@ -10,10 +10,11 @@ import static org.junit.Assert.assertEquals;
 public class BlockClientCoderTest extends ClientCoderTest {
 
     @Test
-    public void test() throws Exception {
-        BlockCoder sut = new BlockCoder(10, 2);
+    public void testSimple() throws Exception {
+        BlockCoder sut = new BlockCoder(10, 2, new LongDataTransactionCoder(params, new byte[32]), new SameAsBlockTransactionSorter(block));
         IBLT<LongData, LongData> iblt = sut.encode(block);
-        Block result = sut.decode(iblt, block.getTransactions());
+        Block result = sut.decode(block.cloneAsHeader(), iblt, block.getTransactions());
         assertEquals(block, result);
     }
+
 }

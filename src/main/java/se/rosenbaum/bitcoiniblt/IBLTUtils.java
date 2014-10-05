@@ -6,12 +6,13 @@ import se.rosenbaum.iblt.data.IntegerData;
 import se.rosenbaum.iblt.data.LongData;
 import se.rosenbaum.iblt.hash.HashFunction;
 import se.rosenbaum.iblt.hash.IntegerDataHashFunction;
+import se.rosenbaum.iblt.hash.LongDataHashFunction;
 import se.rosenbaum.iblt.hash.LongDataSubtablesHashFunctions;
 
 public class IBLTUtils {
     public static Cell<LongData, LongData>[] createCells(int numberOfCells) {
         Cell[] cells = new Cell[numberOfCells];
-        HashFunction<IntegerData, IntegerData> hashFunction = new IntegerDataHashFunction();
+        LongDataHashFunction hashFunction = new LongDataHashFunction();
         for (int i = 0; i < numberOfCells; i++) {
             cells[i] = new Cell(data(0), data(0), data(0), hashFunction);
         }

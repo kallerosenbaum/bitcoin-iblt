@@ -6,81 +6,66 @@ import com.google.bitcoin.core.Transaction;
 import com.google.bitcoin.core.TransactionInput;
 import se.rosenbaum.iblt.IBLT;
 import se.rosenbaum.iblt.data.LongData;
+import se.rosenbaum.iblt.util.ResidualData;
 
-import java.math.BigInteger;
 import java.util.*;
 
 public class BlockCoder {
     private int cellCount;
     private int hashFunctionCount;
-
-    private List<Transaction> sort(List<Transaction> list) {
-        ArrayList<Transaction> sortedList = new ArrayList<Transaction>(list);
-        Collections.sort(sortedList, new TransactionComparator());
-        return sortedList;
-    }
+    private LongDataTransactionCoder transactionCoder;
+    private TransactionSorter sorter;
 
 
-    public BlockCoder(int cellCount, int hashFunctionCount) {
+    public BlockCoder(int cellCount, int hashFunctionCount, LongDataTransactionCoder transactionCoder, TransactionSorter sorter) {
         this.cellCount = cellCount;
         this.hashFunctionCount = hashFunctionCount;
+        this.transactionCoder = transactionCoder;
+        this.sorter = sorter;
     }
 
     public IBLT<LongData, LongData> encode(Block block) {
         IBLT<LongData, LongData> iblt = IBLTUtils.createIblt(cellCount, hashFunctionCount);
-        List<Transaction> sorted = block.getTransactions();
-        while (!sorted.isEmpty()) {
-           // for (int i = 0; i < )
+        List<Transaction> transactions = block.getTransactions();
+        for (Transaction transaction : transactions) {
+            Map<LongData, LongData> data = transactionCoder.encodeTransaction(transaction);
+            for (Map.Entry<LongData, LongData> entry : data.entrySet()) {
+                iblt.insert(entry.getKey(), entry.getValue());
+            }
         }
         return iblt;
     }
 
-    Iterator<Transaction> iterator(List<Transaction> list) {
-        List<Transaction> sideList = new ArrayList<Transaction>();
-
-        for (int i = 0; i < list.size(); i++) {
-            Transaction transaction = list.get(i);
-            for (int j = i + 1; j < list.size(); j++) {
-                if (dependsOn(transaction, list.get(j))) {
-                    sideList.add(transaction);
-                }
-            }
-        }
-    }
-
     private class TransactionIterator implements Iterator<Transaction> {
         List<Transaction> sideList = new ArrayList<Transaction>();
-        List<Transaction> list;
+        List<Transaction> sortedList;
         private int index = 0;
 
-        private TransactionIterator(List<Transaction> list) {
-            this.list = list;
+        private TransactionIterator(List<Transaction> sortedList) {
+            this.sortedList = sortedList;
         }
 
         @Override
         public boolean hasNext() {
-            return !sideList.isEmpty() || index >= list.size();
+            return !sortedList.isEmpty();
         }
 
         @Override
         public Transaction next() {
-            Transaction transaction;
-
-            boolean found = false;
-            while (!found) {
-                if (!sideList.isEmpty()) {
-                    for (int i = 1; i < sideList.size(); i++) {
-
+            for (int i = 0; i < sortedList.size(); i++) {
+                Transaction transaction = sortedList.get(i);
+                boolean isDependee = false;
+                for (int j = i + 1; j < sortedList.size(); j++) {
+                    if (dependsOn(transaction, sortedList.get(j))) {
+                        isDependee = true;
+                        break;
                     }
                 }
-            }
-            transaction = list.get(index);
-            for (int j = i + 1; j < list.size(); j++) {
-                if (dependsOn(transaction, list.get(j))) {
-                    sideList.add(transaction);
+                if (!isDependee) {
+                    return transaction;
                 }
             }
-            return false;  //To change body of implemented methods use File | Settings | File Templates.
+            throw new RuntimeException("Either circular referencing transactions, or No transactions left");
         }
 
         @Override
@@ -98,7 +83,22 @@ public class BlockCoder {
         return false;
     }
 
-    public Block decode(IBLT<LongData, LongData> iblt, List<Transaction> myTransactions) {
-        return null;
+    public Block decode(Block header, IBLT<LongData, LongData> iblt, List<Transaction> myTransactions) {
+        List<Transaction> mutableList = new ArrayList<Transaction>();
+        for (Transaction myTransaction : myTransactions) {
+            Map<LongData, LongData> map = transactionCoder.encodeTransaction(myTransaction);
+            for (Map.Entry<LongData, LongData> entry : map.entrySet()) {
+                iblt.delete(entry.getKey(), entry.getValue());
+            }
+            mutableList.add(myTransaction);
+        }
+        ResidualData<LongData,LongData> residualData = iblt.listEntries();
+        mutableList.removeAll(transactionCoder.decodeTransactions(residualData.getAbsentEntries()));
+        mutableList.addAll(transactionCoder.decodeTransactions(residualData.getExtraEntries()));
+        for (Transaction transaction : sorter.sort(mutableList)) {
+            header.addTransaction(transaction);
+        }
+        return header;
     }
+
 }

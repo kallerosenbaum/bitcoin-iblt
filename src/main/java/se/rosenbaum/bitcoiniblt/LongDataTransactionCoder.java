@@ -6,24 +6,23 @@ import com.google.bitcoin.core.Transaction;
 import se.rosenbaum.iblt.data.LongData;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
-public class TransactionCoder {
+public class LongDataTransactionCoder {
     NetworkParameters params;
     byte[] salt;
 
-    public TransactionCoder(NetworkParameters params, byte[] salt) {
+    public LongDataTransactionCoder(NetworkParameters params, byte[] salt) {
+        if (salt.length != 256/8) {
+            throw new RuntimeException("Bad salt length! Must be 32, but was  " + salt.length);
+        }
+
         this.params = params;
         this.salt = salt;
     }
 
     public Map<LongData, LongData> encodeTransaction(Transaction transaction) {
         Map<LongData, LongData> map = new HashMap<LongData, LongData>();
-        if (salt.length != 256/8) {
-            throw new RuntimeException("Bad salt length! Must be 32, but was  " + salt.length);
-        }
         byte[] transactionId = transaction.getHash().getBytes();
         byte[] key = Arrays.copyOf(transactionId, transactionId.length + salt.length);
         System.arraycopy(salt, 0, key, transactionId.length, salt.length);
@@ -62,4 +61,38 @@ public class TransactionCoder {
         return new Transaction(params, txBytes);
     }
 
+
+    public List<Transaction> decodeTransactions(Map<LongData, LongData> entries) {
+        Map<Long, byte[]> transactionGroups = new HashMap<Long, byte[]>();
+        for (Map.Entry<LongData, LongData> entry : entries.entrySet()) {
+            long key = entry.getKey().getValue();
+            byte[] keyBytes = ByteBuffer.allocate(8).putLong(key).array();
+            char keyCounter = ByteBuffer.wrap(keyBytes, 6, 2).getChar();
+            keyBytes[6] = 0;
+            keyBytes[7] = 0;
+
+            long keyKey = ByteBuffer.wrap(keyBytes).getLong();
+
+            long value = entry.getValue().getValue();
+            byte[] valueBytes = ByteBuffer.allocate(8).putLong(value).array();
+
+            byte[] txBytes = transactionGroups.get(keyKey);
+            if (txBytes == null) {
+                txBytes = new byte[(keyCounter+1) * 8];
+                transactionGroups.put(keyKey, txBytes);
+            } else if (txBytes.length < (keyCounter+1) * 8) {
+                byte[] newTxBytes = new byte[(keyCounter+1) * 8];
+                System.arraycopy(txBytes, 0, newTxBytes, 0, txBytes.length);
+                transactionGroups.put(keyKey, newTxBytes);
+                txBytes = newTxBytes;
+            }
+
+            System.arraycopy(valueBytes, 0, txBytes, keyCounter * 8, 8);
+        }
+        List<Transaction> result = new ArrayList<Transaction>(transactionGroups.size());
+        for (byte[] txBytes : transactionGroups.values()) {
+            result.add(new Transaction(params, txBytes));
+        }
+        return result;
+    }
 }

@@ -8,12 +8,12 @@ import static org.easymock.EasyMock.createMock;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class TransactionComparatorTest extends CoderTest {
-    TransactionComparator sut;
+public class CanonicalOrderTransactionSorterTest extends CoderTest {
+    CanonicalOrderTransactionSorter sut;
 
     @Before
     public void setup() {
-        sut = new TransactionComparator();
+        sut = new CanonicalOrderTransactionSorter();
     }
 
     @Test

@@ -1,4 +1,4 @@
-package se.rosenbaum.bitcoiniblt;
+package se.rosenbaum.bitcoiniblt.longdata;
 
 import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.Sha256Hash;

@@ -13,8 +13,8 @@ import java.util.concurrent.ExecutionException;
 
 public abstract class ClientCoderTest extends CoderTest {
     static protected byte[] salt;
-    static NetworkParameters params;
-    static Block block;
+    static protected NetworkParameters params;
+    static protected Block block;
     private static WalletAppKit walletAppKit;
 
     @BeforeClass

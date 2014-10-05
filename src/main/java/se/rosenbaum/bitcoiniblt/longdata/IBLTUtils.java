@@ -1,4 +1,4 @@
-package se.rosenbaum.bitcoiniblt;
+package se.rosenbaum.bitcoiniblt.longdata;
 
 import se.rosenbaum.iblt.Cell;
 import se.rosenbaum.iblt.IBLT;

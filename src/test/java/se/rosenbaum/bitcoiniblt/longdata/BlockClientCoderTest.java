@@ -1,7 +1,11 @@
-package se.rosenbaum.bitcoiniblt;
+package se.rosenbaum.bitcoiniblt.longdata;
 
 import com.google.bitcoin.core.Block;
 import org.junit.Test;
+import se.rosenbaum.bitcoiniblt.ClientCoderTest;
+import se.rosenbaum.bitcoiniblt.SameAsBlockTransactionSorter;
+import se.rosenbaum.bitcoiniblt.longdata.BlockCoder;
+import se.rosenbaum.bitcoiniblt.longdata.LongDataTransactionCoder;
 import se.rosenbaum.iblt.IBLT;
 import se.rosenbaum.iblt.data.LongData;
 
@@ -15,7 +19,6 @@ public class BlockClientCoderTest extends ClientCoderTest {
         IBLT<LongData, LongData> iblt = sut.encode(block);
         Block result = sut.decode(block.cloneAsHeader(), iblt, block.getTransactions());
         assertEquals(block, result);
-        // test line
     }
 
 }

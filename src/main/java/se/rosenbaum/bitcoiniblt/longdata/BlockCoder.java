@@ -1,9 +1,10 @@
-package se.rosenbaum.bitcoiniblt;
+package se.rosenbaum.bitcoiniblt.longdata;
 
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.Sha256Hash;
 import com.google.bitcoin.core.Transaction;
 import com.google.bitcoin.core.TransactionInput;
+import se.rosenbaum.bitcoiniblt.TransactionSorter;
 import se.rosenbaum.iblt.IBLT;
 import se.rosenbaum.iblt.data.LongData;
 import se.rosenbaum.iblt.util.ResidualData;

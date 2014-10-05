@@ -1,9 +1,13 @@
-package se.rosenbaum.bitcoiniblt;
+package se.rosenbaum.bitcoiniblt.longdata;
 
 import com.google.bitcoin.core.Transaction;
 import com.google.bitcoin.params.TestNet3Params;
 import org.junit.Before;
 import org.junit.Test;
+import se.rosenbaum.bitcoiniblt.CanonicalOrderTransactionSorter;
+import se.rosenbaum.bitcoiniblt.CoderTest;
+import se.rosenbaum.bitcoiniblt.longdata.BlockCoder;
+import se.rosenbaum.bitcoiniblt.longdata.LongDataTransactionCoder;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,8 +1,10 @@
-package se.rosenbaum.bitcoiniblt;
+package se.rosenbaum.bitcoiniblt.longdata;
 
 import com.google.bitcoin.core.Transaction;
 import com.google.bitcoin.store.BlockStoreException;
 import org.junit.Test;
+import se.rosenbaum.bitcoiniblt.ClientCoderTest;
+import se.rosenbaum.bitcoiniblt.longdata.LongDataTransactionCoder;
 import se.rosenbaum.iblt.Cell;
 import se.rosenbaum.iblt.IBLT;
 import se.rosenbaum.iblt.data.IntegerData;

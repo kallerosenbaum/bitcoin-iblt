@@ -25,28 +25,6 @@ import static org.junit.Assert.assertTrue;
 public class LongDataTransactionCoderTest extends ClientCoderTest {
     LongDataHashFunction cellHashFunction = new LongDataHashFunction();
 
-    private LongData data(long value) {
-        return new LongData(value);
-    }
-
-    private Cell<LongData, LongData> createCell() {
-        Cell<LongData, LongData> cell = new Cell<LongData, LongData>(data(0), data(0), new IntegerData(0),
-                cellHashFunction);
-        return cell;
-    }
-
-    private Cell<LongData, LongData>[] createCells(int cellCount) {
-        Cell<LongData, LongData>[] cells = new Cell[cellCount];
-        for (int i = 0; i < cellCount; i++) {
-            cells[i] = createCell();
-        }
-        return cells;
-    }
-
-    private IBLT<LongData, LongData> createIBLT() {
-        return new IBLT<LongData, LongData>(createCells(10), new LongDataSubtablesHashFunctions(10, 2));
-    }
-
     @Test
     public void testEncodeDecodeTransaction() throws BlockStoreException, ExecutionException, InterruptedException {
         List<Transaction> transactions = block.getTransactions();

@@ -15,6 +15,7 @@ public class BlockClientCoderTest extends ClientCoderTest {
         IBLT<LongData, LongData> iblt = sut.encode(block);
         Block result = sut.decode(block.cloneAsHeader(), iblt, block.getTransactions());
         assertEquals(block, result);
+        // test line
     }
 
 }

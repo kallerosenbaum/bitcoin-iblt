@@ -3,12 +3,13 @@ package se.rosenbaum.bitcoiniblt.longdata;
 import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.Sha256Hash;
 import com.google.bitcoin.core.Transaction;
+import se.rosenbaum.bitcoiniblt.TransactionCoder;
 import se.rosenbaum.iblt.data.LongData;
 
 import java.nio.ByteBuffer;
 import java.util.*;
 
-public class LongDataTransactionCoder {
+public class LongDataTransactionCoder implements TransactionCoder<LongData, LongData> {
     NetworkParameters params;
     byte[] salt;
 

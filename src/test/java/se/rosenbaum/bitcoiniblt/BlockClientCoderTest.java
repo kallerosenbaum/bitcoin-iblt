@@ -25,7 +25,7 @@ public class BlockClientCoderTest extends ClientCoderTest {
 
     @Before
     public void setup() {
-        transactionCoder = new ByteArrayDataTransactionCoder(params, new byte[32], 8, 32);
+        transactionCoder = new ByteArrayDataTransactionCoder(params, salt, 8, 32);
         sorter = new SameAsBlockTransactionSorter(block);
         IBLT iblt = new IBLTUtils().createIblt(1600, 4, 8, 32, 4);
         sut = new BlockCoder(iblt, transactionCoder, sorter);

@@ -28,7 +28,6 @@ public abstract class ClientCoderTest extends CoderTest {
     static protected NetworkParameters params;
     static protected Block block;
     private static WalletAppKit walletAppKit;
-    private static BlockStore blockStore;
 
     /**
      * We do this statically since it's pretty expensive to start a client.
@@ -36,10 +35,9 @@ public abstract class ClientCoderTest extends CoderTest {
     @BeforeClass
     public static void setupWallet() throws ExecutionException, InterruptedException, BlockStoreException {
         params = new TestNet3Params();
-        walletAppKit = new WalletAppKit(params, new File(System.getProperty("java.io.tmpdir")), "iblt");
+        String tmpDir = System.getProperty("java.io.tmpdir");
+        walletAppKit = new WalletAppKit(params, new File(tmpDir), "iblt");
         walletAppKit.startAndWait();
-
-        blockStore = new H2FullPrunedBlockStore(params, "/home/kalle/tmp/clientCoderTest", 10);
 
         Sha256Hash blockHash = new Sha256Hash("00000000e4a728571997c669c52425df5f529dd370fa9164c64fd60a49e245c4");
         block = getBlock(blockHash);

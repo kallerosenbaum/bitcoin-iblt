@@ -42,7 +42,7 @@ public class ByteArrayDataTransactionCoder implements TransactionCoder<ByteArray
             keyBytes[6] = keyCounterBytes[0];
             keyBytes[7] = keyCounterBytes[1];
 
-            ByteArrayData keyData = new ByteArrayData(keyBytes);
+            ByteArrayData keyData = new ByteArrayData(Arrays.copyOfRange(keyBytes, 0, keySize));
             ByteArrayData valueData = new ByteArrayData(Arrays.copyOfRange(bytes, i, i+valueSize));
             map.put(keyData, valueData);
         }
@@ -62,7 +62,7 @@ public class ByteArrayDataTransactionCoder implements TransactionCoder<ByteArray
             if (txBytes == null) {
                 txBytes = new byte[(keyCounter+1) * valueSize];
                 transactionGroups.put(keyKey, txBytes);
-            } else if (txBytes.length < (keyCounter+1) * 8) {
+            } else if (txBytes.length < (keyCounter+1) * valueSize) {
                 byte[] newTxBytes = new byte[(keyCounter+1) * valueSize];
                 System.arraycopy(txBytes, 0, newTxBytes, 0, txBytes.length);
                 transactionGroups.put(keyKey, newTxBytes);

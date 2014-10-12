@@ -2,7 +2,6 @@ package se.rosenbaum.bitcoiniblt;
 
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.Transaction;
-import se.rosenbaum.bitcoiniblt.bytearraydata.IBLTUtils;
 import se.rosenbaum.iblt.IBLT;
 import se.rosenbaum.iblt.data.Data;
 import se.rosenbaum.iblt.util.ResidualData;
@@ -12,21 +11,17 @@ import java.util.List;
 import java.util.Map;
 
 public class BlockCoder<K extends Data, V extends Data> {
-    private int cellCount;
-    private int hashFunctionCount;
+    private IBLT<K, V> iblt;
     private TransactionCoder transactionCoder;
     private TransactionSorter sorter;
 
-
-    public BlockCoder(int cellCount, int hashFunctionCount, TransactionCoder transactionCoder, TransactionSorter sorter) {
-        this.cellCount = cellCount;
-        this.hashFunctionCount = hashFunctionCount;
+    public BlockCoder(IBLT<K, V> iblt, TransactionCoder transactionCoder, TransactionSorter sorter) {
+        this.iblt = iblt;
         this.transactionCoder = transactionCoder;
         this.sorter = sorter;
     }
 
     public IBLT<K, V> encode(Block block) {
-        IBLT iblt = IBLTUtils.createIblt(cellCount, hashFunctionCount);
         List<Transaction> transactions = block.getTransactions();
         for (Transaction transaction : transactions) {
             Map<K, V> data = transactionCoder.encodeTransaction(transaction);
@@ -47,6 +42,9 @@ public class BlockCoder<K extends Data, V extends Data> {
             mutableList.add(myTransaction);
         }
         ResidualData<K, V> residualData = iblt.listEntries();
+        if (residualData == null) {
+            return null;
+        }
         mutableList.removeAll(transactionCoder.decodeTransactions(residualData.getAbsentEntries()));
         mutableList.addAll(transactionCoder.decodeTransactions(residualData.getExtraEntries()));
         for (Transaction transaction : sorter.sort(mutableList)) {

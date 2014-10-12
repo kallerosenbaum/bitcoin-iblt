@@ -23,7 +23,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class LongDataTransactionCoderTest extends ClientCoderTest {
-    LongDataHashFunction cellHashFunction = new LongDataHashFunction();
 
     @Test
     public void testEncodeDecodeTransaction() throws BlockStoreException, ExecutionException, InterruptedException {

@@ -25,8 +25,8 @@ public class BlockClientCoderTest extends ClientCoderTest {
 
     @Before
     public void setup() {
-        transactionCoder = new ByteArrayDataTransactionCoder(params, salt, 8, 32);
-        sorter = new SameAsBlockTransactionSorter(block);
+        transactionCoder = new ByteArrayDataTransactionCoder(getParams(), salt, 8, 32);
+        sorter = new SameAsBlockTransactionSorter(getBlock());
         IBLT iblt = new IBLTUtils().createIblt(1600, 4, 8, 32, 4);
         sut = new BlockCoder(iblt, transactionCoder, sorter);
     }
@@ -67,6 +67,7 @@ public class BlockClientCoderTest extends ClientCoderTest {
     }
 
     private void testEncodeDecode(int extraCount, int absentCount) {
+        Block block = getBlock();
         IBLT<LongData, LongData> iblt = sut.encode(block);
         List<Transaction> blockTransactions = block.getTransactions();
 
@@ -91,22 +92,22 @@ public class BlockClientCoderTest extends ClientCoderTest {
         }
 
         // Add some transactions to my "mempool" that is not in the IBLT
-        Block otherBlock = block;
-        int otherCount = 0;
-        while (otherCount < absentCount) {
-            // Pick up transactions from previous blocks
-            otherBlock = getBlock(otherBlock.getPrevBlockHash());
-            List<Transaction> otherTransactions = otherBlock.getTransactions();
-            for (int i = 1; i < otherTransactions.size(); i++) {
-                myTransactions.add(otherTransactions.get(i));
-                if (otherCount == absentCount) {
-                    break;
-                }
-                otherCount++;
-            }
-        }
+        TransactionAdder txAdder = new TransactionAdder(myTransactions);
+        processTransactions(getBlock().getPrevBlockHash().toString(), absentCount, txAdder);
 
         return myTransactions;
     }
 
+    private class TransactionAdder implements TransactionProcessor {
+        private List<Transaction> transactions;
+
+        private TransactionAdder(List<Transaction> transactions) {
+            this.transactions = transactions;
+        }
+
+        @Override
+        public void process(Transaction transaction) {
+            transactions.add(transaction);
+        }
+    }
 }

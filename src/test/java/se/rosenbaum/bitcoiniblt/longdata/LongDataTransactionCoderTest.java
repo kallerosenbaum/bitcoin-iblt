@@ -26,10 +26,10 @@ public class LongDataTransactionCoderTest extends ClientCoderTest {
 
     @Test
     public void testEncodeDecodeTransaction() throws BlockStoreException, ExecutionException, InterruptedException {
-        List<Transaction> transactions = block.getTransactions();
+        List<Transaction> transactions = getBlock().getTransactions();
         assertFalse(transactions.isEmpty());
 
-        LongDataTransactionCoder sut = new LongDataTransactionCoder(params, salt);
+        LongDataTransactionCoder sut = new LongDataTransactionCoder(getParams(), salt);
 
         for (Transaction transaction : transactions) {
             Map<LongData, LongData> map = sut.encodeTransaction(transaction);
@@ -40,9 +40,9 @@ public class LongDataTransactionCoderTest extends ClientCoderTest {
 
     @Test
     public void testEncodeDecodeTransactions() throws BlockStoreException, ExecutionException, InterruptedException {
-        List<Transaction> transactions = new ArrayList<Transaction>(block.getTransactions());
+        List<Transaction> transactions = new ArrayList<Transaction>(getBlock().getTransactions());
         assertFalse(transactions.isEmpty());
-        LongDataTransactionCoder sut = new LongDataTransactionCoder(params, salt);
+        LongDataTransactionCoder sut = new LongDataTransactionCoder(getParams(), salt);
         Map<LongData, LongData> allData = new HashMap<LongData, LongData>();
         for (Transaction transaction : transactions) {
             Map<LongData, LongData> map = sut.encodeTransaction(transaction);

@@ -34,6 +34,11 @@ public class BlockCoder<K extends Data, V extends Data> {
 
     public Block decode(Block header, IBLT<K, V> iblt, List<Transaction> myTransactions) {
         List<Transaction> mutableList = new ArrayList<Transaction>();
+        // Gavin suggests that we build our own IBLT and then
+        // do the IBLT_new - IBLT_us operation. I don't see
+        // why that's necessary. I just remove the transactions
+        // from IBLT_new one by one instead. Removing a transaction
+        // from IBLT_new is the same cost as adding it to IBLT_us.
         for (Transaction myTransaction : myTransactions) {
             Map<K, V> map = transactionCoder.encodeTransaction(myTransaction);
             for (Map.Entry<K, V> entry : map.entrySet()) {

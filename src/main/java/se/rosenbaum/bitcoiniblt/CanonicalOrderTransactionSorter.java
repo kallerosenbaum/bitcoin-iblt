@@ -38,7 +38,7 @@ public class CanonicalOrderTransactionSorter implements TransactionSorter, Compa
         SortKey sortKey = new SortKey();
         List<TransactionInput> inputs = transaction.getInputs();
         for (int index = 0; index < inputs.size(); index++) {
-            BigInteger hash = inputs.get(index).getHash().toBigInteger();
+            BigInteger hash = inputs.get(index).getParentTransaction().getHash().toBigInteger();
             if (sortKey.hash == null) {
                 sortKey.hash = hash;
                 sortKey.index = index;

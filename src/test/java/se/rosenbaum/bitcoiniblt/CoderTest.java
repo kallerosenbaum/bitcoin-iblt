@@ -24,7 +24,10 @@ public class CoderTest extends EasyMockSupport {
         List<TransactionInput> inputs = new ArrayList<TransactionInput>();
         for (String hash : hashes) {
             TransactionInput input = createMock(TransactionInput.class);
-            expect(input.getHash()).andReturn(createHash(hash)).anyTimes();
+            Transaction inputTransaction = createMock(Transaction.class);
+
+            expect(input.getParentTransaction()).andReturn(inputTransaction).anyTimes();
+            expect(inputTransaction.getHash()).andReturn(createHash(hash)).anyTimes();
             inputs.add(input);
         }
         expect(t1.getInputs()).andReturn(inputs).anyTimes();

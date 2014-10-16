@@ -5,20 +5,14 @@ import com.google.bitcoin.params.MainNetParams;
 import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import se.rosenbaum.bitcoiniblt.bytearraydata.ByteArrayDataTransactionCoder;
 import se.rosenbaum.bitcoiniblt.bytearraydata.IBLTUtils;
 import se.rosenbaum.iblt.IBLT;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
+import java.io.*;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static org.easymock.EasyMock.expect;
@@ -69,31 +63,74 @@ import static org.junit.Assert.*;
  */
 public class BlockStatsTest extends ClientCoderTest {
 
-    private TransactionCoder transactionCoder;
     private TransactionSorter sorter;
     private BlockCoder sut;
 
+    private static final int DIVISOR = 60;
+
     @Before
     public void setup() {
-        transactionCoder = new ByteArrayDataTransactionCoder(getParams(), salt, 8, 32);
         sorter = new CanonicalOrderTransactionSorter();
-        IBLT iblt = new IBLTUtils().createIblt(1600, 4, 8, 32, 4);
+    }
+
+    private void createBlockCoder(int cellCount, int hashFunctionCount, int keySize, int valueSize) {
+        TransactionCoder transactionCoder = new ByteArrayDataTransactionCoder(getParams(), salt, keySize, valueSize);
+        IBLT iblt = new IBLTUtils().createIblt(cellCount, hashFunctionCount, keySize, valueSize, 4);
         sut = new BlockCoder(iblt, transactionCoder, sorter);
     }
 
     @Test
-    public void testBlockStats() throws IOException {
+    public void testSimple() throws IOException {
+        PrintWriter writer = new PrintWriter(new FileWriter(new File(tempDirectory, "valueSizeStats.csv")));
+        String format = "%s,%s,%s,%s,%s,%s,%s\n";
+        writer.printf(format, "txcount", "hashFunctionCount", "keySize", "valueSize", "keyHashSize", "cellCount","status");
+        int txCount = 3000;
+        int hashFunctionCount = 4;
+
+        int currentAttempt = 8096*2;
+        int lowestSuccess = currentAttempt;
+        int highestFail = 0;
+
+        for (int i = 0; i < 10; i++) {
+            int valueSize = 8*(int)Math.pow(2, i); // 8 --> 4096 bytes
+
+            boolean finished = false;
+            while (!finished) {
+                createBlockCoder(currentAttempt, hashFunctionCount, 8, valueSize);
+
+                boolean result = testBlockStats(txCount);
+                writer.printf(format, txCount, hashFunctionCount, 8, valueSize, 4, currentAttempt,
+                        result ? "success" : "fail");
+                writer.flush();
+                if (result) {
+                    lowestSuccess = currentAttempt;
+                } else {
+                    highestFail = currentAttempt;
+                }
+                currentAttempt = lowestSuccess - (lowestSuccess - highestFail)/2;
+                // Must be a multiple of hashFunctionCount;
+                currentAttempt += currentAttempt % hashFunctionCount;
+
+                if (currentAttempt >= lowestSuccess || currentAttempt <= highestFail) {
+                    finished = true;
+                    currentAttempt = lowestSuccess;
+                    highestFail = 0;
+                }
+            }
+        }
+        writer.close();
+    }
+
+    public boolean testBlockStats(int transactionCount) throws IOException {
         TransactionCollectorProcessor transactionCollector = new TransactionCollectorProcessor();
-        int blockTransactionCount = 100;
-        int diffCount = blockTransactionCount / 60;
-        transactionCollector.count = blockTransactionCount + diffCount;
+        int diffCount = transactionCount / DIVISOR;
+        transactionCollector.count = transactionCount + diffCount;
 
         processTransactions(MAINNET_BLOCK, Integer.MAX_VALUE, transactionCollector);
         List<Transaction> blockTransactions = transactionCollector.transactions;
-        List<Transaction> myTransactions = fixDifferences(blockTransactions, diffCount);
+        List<Transaction> myTransactions = createDifferences(blockTransactions, diffCount);
 
-        List<Transaction> sortedBlockTransactions = new ArrayList<Transaction>(blockTransactions);
-        sorter.sort(sortedBlockTransactions);
+        List<Transaction> sortedBlockTransactions = sorter.sort(blockTransactions);
 
         Block myBlock = EasyMock.createMock(Block.class);
         expect(myBlock.getTransactions()).andReturn(sortedBlockTransactions);
@@ -107,15 +144,22 @@ public class BlockStatsTest extends ClientCoderTest {
 
         IBLT iblt = sut.encode(myBlock);
         Block resultBlock = sut.decode(recreatedBlock, iblt, myTransactions);
-        assertNotNull(resultBlock);
+        //assertNotNull("Set reconciliation failed!", resultBlock);
+        if (resultBlock == null) {
+            return false;
+        }
 
         List<Transaction> result = capture.getValues();
         assertListsEqual(sortedBlockTransactions, result);
+        return true;
     }
 
-    private List<Transaction> fixDifferences(List<Transaction> blockTransactions, int diffCount) {
+    private List<Transaction> createDifferences(List<Transaction> blockTransactions, int diffCount) {
         List<Transaction> result = new ArrayList<Transaction>(blockTransactions);
-        assertTrue(diffCount < blockTransactions.size() - 2);
+        if (diffCount == 0) {
+            return result;
+        }
+        assertTrue(diffCount < blockTransactions.size());
         // Remove different transactions from both result and blockTransactions
         for (int i = 0; i < diffCount; i++) {
             int removalIndex = i * 2;
@@ -141,13 +185,15 @@ public class BlockStatsTest extends ClientCoderTest {
         private int count;
         @Override
         public void process(Transaction transaction) throws StopProcessingException {
-            if (transactions.size() == 0 && transaction.isCoinBase()) {
+            if (transaction.isCoinBase()) {
+                if (transactions.size() == 0) {
+                    transactions.add(transaction);
+                } else {
+                    return;
+                }
+            } else {
                 transactions.add(transaction);
             }
-            if (transactions.size() > 0 && transaction.isCoinBase()) {
-                return;
-            }
-            transactions.add(transaction);
             if (transactions.size() == count) {
                 throw new StopProcessingException();
             }

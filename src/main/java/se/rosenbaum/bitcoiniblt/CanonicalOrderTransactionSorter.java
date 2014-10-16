@@ -2,6 +2,7 @@ package se.rosenbaum.bitcoiniblt;
 
 import com.google.bitcoin.core.Transaction;
 import com.google.bitcoin.core.TransactionInput;
+import com.google.bitcoin.core.TransactionOutPoint;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -13,7 +14,7 @@ public class CanonicalOrderTransactionSorter implements TransactionSorter, Compa
 
     private class SortKey {
         BigInteger hash = null;
-        int index = -1;
+        long index = -1;
     }
 
     @Override
@@ -29,7 +30,7 @@ public class CanonicalOrderTransactionSorter implements TransactionSorter, Compa
         int comparison = key.hash.compareTo(key2.hash);
         // negative if transaction is less than transaction2
         if (comparison == 0) {
-            return key.index-key2.index;
+            return key.index-key2.index < 0L ? -1 : 1;
         }
         return comparison;
     }
@@ -38,13 +39,14 @@ public class CanonicalOrderTransactionSorter implements TransactionSorter, Compa
         SortKey sortKey = new SortKey();
         List<TransactionInput> inputs = transaction.getInputs();
         for (int index = 0; index < inputs.size(); index++) {
-            BigInteger hash = inputs.get(index).getParentTransaction().getHash().toBigInteger();
+            TransactionOutPoint outpoint = inputs.get(index).getOutpoint();
+            BigInteger hash = outpoint.getHash().toBigInteger();
             if (sortKey.hash == null) {
                 sortKey.hash = hash;
-                sortKey.index = index;
+                sortKey.index = outpoint.getIndex();
             } else if (sortKey.hash.compareTo(hash) > 0) {
                 sortKey.hash = hash;
-                sortKey.index = index;
+                sortKey.index = outpoint.getIndex();
             }
         }
         return sortKey;

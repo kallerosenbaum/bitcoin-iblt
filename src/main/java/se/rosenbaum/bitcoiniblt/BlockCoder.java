@@ -52,7 +52,8 @@ public class BlockCoder<K extends Data, V extends Data> {
         }
         mutableList.removeAll(transactionCoder.decodeTransactions(residualData.getAbsentEntries()));
         mutableList.addAll(transactionCoder.decodeTransactions(residualData.getExtraEntries()));
-        for (Transaction transaction : sorter.sort(mutableList)) {
+        List<Transaction> sortedTransactions = sorter.sort(mutableList);
+        for (Transaction transaction : sortedTransactions) {
             header.addTransaction(transaction);
         }
         return header;

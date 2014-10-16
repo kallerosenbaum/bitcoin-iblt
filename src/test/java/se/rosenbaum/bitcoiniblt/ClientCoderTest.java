@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -34,22 +35,24 @@ public abstract class ClientCoderTest extends CoderTest {
     // Test network block
     public static final String TESTNET_BLOCK = "00000000e4a728571997c669c52425df5f529dd370fa9164c64fd60a49e245c4";
 
-    private static String BLOCK = null;
-
-    private static Map<Sha256Hash, Block> blockCache = new HashMap<Sha256Hash, Block>();
-    private File tempDirectory;
-    private static final String BLOCK_DIRECTORY = "blocks";
+    protected File tempDirectory;
+    private File blockDirectory;
+    private File walletDirectory;
 
     @Before
     public void setupWallet() throws ExecutionException, InterruptedException, BlockStoreException {
         salt = new byte[32];
         salt[14] = -45; // set something other than 0.
-        String tmpDir = System.getProperty("java.io.tmpdir");
-        tempDirectory = new File(tmpDir);
+        String tmpDir = System.getProperty("iblt.output.dir", ".");
+        tempDirectory = new File(new File(tmpDir), "data");
+        blockDirectory = new File(tempDirectory, "blocks");
+        walletDirectory = new File(tempDirectory, "wallet");
+        blockDirectory.mkdirs();
+        walletDirectory.mkdirs();
     }
 
     private void startWallet() {
-        walletAppKit = new WalletAppKit(getParams(), tempDirectory, "iblt" + getParams().getClass().getSimpleName());
+        walletAppKit = new WalletAppKit(getParams(), walletDirectory, "iblt" + getParams().getClass().getSimpleName());
         walletAppKit.startAndWait();
     }
 
@@ -62,18 +65,19 @@ public abstract class ClientCoderTest extends CoderTest {
 
     public Block getBlock(Sha256Hash blockId) {
         try {
-            System.out.print("Getting block " + blockId + "... ");
-            if (blockCache.containsKey(blockId)) {
+            System.out.println("Getting block " + blockId);
+            Block block = readBlockFromDisk(blockId);
+            if (block != null) {
                 System.out.println("found in cache!");
-                return blockCache.get(blockId);
+                return block;
             }
 
             if (walletAppKit == null) {
                 startWallet();
             }
-            Block block = walletAppKit.peerGroup().getDownloadPeer().getBlock(blockId).get();
+            block = walletAppKit.peerGroup().getDownloadPeer().getBlock(blockId).get();
             System.out.println("downladed!");
-            blockCache.put(blockId, block);
+            saveBlockToDisk(block);
             return block;
         } catch (Exception e) {
             e.printStackTrace();
@@ -82,31 +86,40 @@ public abstract class ClientCoderTest extends CoderTest {
         }
     }
 
-    private Block readBlock(Sha256Hash blockHash) {
-        System.out.print("Reading block " + block.getHash().toString() + "... ");
-        File blockFile = new File(new File(tempDirectory, BLOCK_DIRECTORY), blockHash.toString());
+    private Block readBlockFromDisk(Sha256Hash blockHash) {
+        System.out.print("Reading block " + blockHash.toString() + " from disk ... ");
+        File blockFile = new File(blockDirectory, blockHash.toString());
         if (!blockFile.exists()) {
+            System.out.println(" not found!");
             return null;
         }
-
         try {
-            FileInputStream fileInput = new FileInputStream(blockFile);
-            ByteArrayInputStream in = new ByteArrayInputStream(fileInput);
 
+            FileInputStream fileInput = new FileInputStream(blockFile);
+            byte[] blockData = new byte[(int) blockFile.length()];
+            fileInput.read(blockData);
+            assertEquals(0, fileInput.available());
+            fileInput.close();
+            System.out.println(" found!");
+            return new Block(getParams(), blockData);
         } catch (FileNotFoundException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            e.printStackTrace();
+            fail();
+        } catch (IOException e) {
+            e.printStackTrace();
+            fail();
         }
-        Block block = new Block()
+        return null;
     }
 
-    private void saveBlock(Block block) {
+    private void saveBlockToDisk(Block block) {
         try {
-            System.out.print("Saving block " + block.getHash().toString() + "... ");
-            File blockFile = new File(new File(tempDirectory, BLOCK_DIRECTORY), block.getHashAsString());
+            System.out.print("Saving block " + block.getHash().toString() + " to disk ... ");
+            File blockFile = new File(blockDirectory, block.getHashAsString());
             FileOutputStream out = new FileOutputStream(blockFile);
             block.bitcoinSerialize(out);
             out.close();
-            System.out.println("done");
+            System.out.println("done!");
         } catch (Exception e) {
             e.printStackTrace();
             fail();
@@ -119,7 +132,7 @@ public abstract class ClientCoderTest extends CoderTest {
     }
 
     public NetworkParameters getParams() {
-        return new TestNet3Params();
+        return TestNet3Params.get();
     }
 
     protected void processTransactions(String startBlockHash, int count, TransactionProcessor processor) {

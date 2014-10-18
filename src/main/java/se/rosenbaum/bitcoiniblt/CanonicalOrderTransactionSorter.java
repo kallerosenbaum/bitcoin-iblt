@@ -29,7 +29,7 @@ public class CanonicalOrderTransactionSorter implements TransactionSorter, Compa
         SortKey key2 = sortKey(transaction2);
         int comparison = key.hash.compareTo(key2.hash);
         // negative if transaction is less than transaction2
-        if (comparison == 0) {
+        if (comparison == 0 && key.index != key2.index) {
             return key.index-key2.index < 0L ? -1 : 1;
         }
         return comparison;
@@ -38,8 +38,8 @@ public class CanonicalOrderTransactionSorter implements TransactionSorter, Compa
     private SortKey sortKey(Transaction transaction) {
         SortKey sortKey = new SortKey();
         List<TransactionInput> inputs = transaction.getInputs();
-        for (int index = 0; index < inputs.size(); index++) {
-            TransactionOutPoint outpoint = inputs.get(index).getOutpoint();
+        for (int i = 0; i < inputs.size(); i++) {
+            TransactionOutPoint outpoint = inputs.get(i).getOutpoint();
             BigInteger hash = outpoint.getHash().toBigInteger();
             if (sortKey.hash == null) {
                 sortKey.hash = hash;

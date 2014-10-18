@@ -6,6 +6,8 @@ import com.google.bitcoin.params.TestNet3Params;
 import com.google.bitcoin.store.BlockStoreException;
 import org.junit.After;
 import org.junit.Before;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -25,6 +27,8 @@ import static org.junit.Assert.fail;
  * chain.
  */
 public abstract class ClientCoderTest extends CoderTest {
+    private static Logger logger = LoggerFactory.getLogger(ClientCoderTest.class);
+
     protected byte[] salt;
 
     private WalletAppKit walletAppKit = null;
@@ -65,10 +69,10 @@ public abstract class ClientCoderTest extends CoderTest {
 
     public Block getBlock(Sha256Hash blockId) {
         try {
-            System.out.println("Getting block " + blockId);
+            logger.debug("Getting block {}", blockId);
             Block block = readBlockFromDisk(blockId);
             if (block != null) {
-                System.out.println("found in cache!");
+                logger.debug("found in cache!");
                 return block;
             }
 
@@ -76,7 +80,7 @@ public abstract class ClientCoderTest extends CoderTest {
                 startWallet();
             }
             block = walletAppKit.peerGroup().getDownloadPeer().getBlock(blockId).get();
-            System.out.println("downladed!");
+            logger.debug("downladed!");
             saveBlockToDisk(block);
             return block;
         } catch (Exception e) {
@@ -87,10 +91,10 @@ public abstract class ClientCoderTest extends CoderTest {
     }
 
     private Block readBlockFromDisk(Sha256Hash blockHash) {
-        System.out.print("Reading block " + blockHash.toString() + " from disk ... ");
+        logger.debug("Reading block {} from disk ... ", blockHash.toString());
         File blockFile = new File(blockDirectory, blockHash.toString());
         if (!blockFile.exists()) {
-            System.out.println(" not found!");
+            logger.debug(" not found!");
             return null;
         }
         try {
@@ -100,7 +104,7 @@ public abstract class ClientCoderTest extends CoderTest {
             fileInput.read(blockData);
             assertEquals(0, fileInput.available());
             fileInput.close();
-            System.out.println(" found!");
+            logger.debug(" found!");
             return new Block(getParams(), blockData);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -114,12 +118,12 @@ public abstract class ClientCoderTest extends CoderTest {
 
     private void saveBlockToDisk(Block block) {
         try {
-            System.out.print("Saving block " + block.getHash().toString() + " to disk ... ");
+            logger.debug("Saving block {} to disk ... ", block.getHash().toString());
             File blockFile = new File(blockDirectory, block.getHashAsString());
             FileOutputStream out = new FileOutputStream(blockFile);
             block.bitcoinSerialize(out);
             out.close();
-            System.out.println("done!");
+            logger.debug("done!");
         } catch (Exception e) {
             e.printStackTrace();
             fail();

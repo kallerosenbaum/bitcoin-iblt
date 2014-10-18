@@ -7,6 +7,8 @@ import org.easymock.CaptureType;
 import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import se.rosenbaum.bitcoiniblt.bytearraydata.ByteArrayDataTransactionCoder;
 import se.rosenbaum.bitcoiniblt.bytearraydata.IBLTUtils;
 import se.rosenbaum.iblt.IBLT;
@@ -62,11 +64,14 @@ import static org.junit.Assert.*;
  * we'll have to fake them, but we can still use real world transactions.
  */
 public class BlockStatsTest extends ClientCoderTest {
+    private static Logger logger = LoggerFactory.getLogger(BlockStatsTest.class);
 
     private TransactionSorter sorter;
     private BlockCoder sut;
 
     private static final int DIVISOR = 60;
+    public static final String OUTPUT_FORMAT = "%s,%s,%s,%s,%s,%s,%s,%s\n";
+    public static final String LOGGER_FORMAT = "{},{},{},{},{},{},{},{},{}\n";
 
     @Before
     public void setup() {
@@ -79,15 +84,30 @@ public class BlockStatsTest extends ClientCoderTest {
         sut = new BlockCoder(iblt, transactionCoder, sorter);
     }
 
+    private static class BlockStatsResult {
+        boolean success;
+        long encodingTime;
+        long decodingTime;
+    }
+
+    private static class TestConfig {
+        int txCount;
+        int hashFunctionCount;
+        int keySize;
+        int valueSize;
+        int keyHashSize;
+        int cellCount;
+    }
+
     @Test
-    public void testSimple() throws IOException {
-        PrintWriter writer = new PrintWriter(new FileWriter(new File(tempDirectory, "valueSizeStats.csv")));
-        String format = "%s,%s,%s,%s,%s,%s,%s\n";
-        writer.printf(format, "txcount", "hashFunctionCount", "keySize", "valueSize", "keyHashSize", "cellCount","status");
+    public void testValueSizeVsCellCount() throws IOException {
+        PrintWriter writer = new PrintWriter(new FileWriter(new File(tempDirectory, "valueSize-cellCount-Stats.csv")));
+        writer.printf(OUTPUT_FORMAT, "txcount", "hashFunctionCount", "keySize", "valueSize", "keyHashSize", "cellCount",
+                "encodeTime", "decodeTime");
         int txCount = 3000;
         int hashFunctionCount = 4;
 
-        int currentAttempt = 8096*2;
+        int currentAttempt = 32384;
         int lowestSuccess = currentAttempt;
         int highestFail = 0;
 
@@ -95,14 +115,15 @@ public class BlockStatsTest extends ClientCoderTest {
             int valueSize = 8*(int)Math.pow(2, i); // 8 --> 4096 bytes
 
             boolean finished = false;
+            BlockStatsResult lastSuccess = null;
             while (!finished) {
                 createBlockCoder(currentAttempt, hashFunctionCount, 8, valueSize);
 
-                boolean result = testBlockStats(txCount);
-                writer.printf(format, txCount, hashFunctionCount, 8, valueSize, 4, currentAttempt,
-                        result ? "success" : "fail");
-                writer.flush();
-                if (result) {
+                BlockStatsResult result = testBlockStats(txCount);
+                logger.info(LOGGER_FORMAT, txCount, hashFunctionCount, 8, valueSize, 4, currentAttempt,
+                        result.encodingTime, result.decodingTime, result.success ? "success" : "fail");
+                if (result.success) {
+                    lastSuccess = result;
                     lowestSuccess = currentAttempt;
                 } else {
                     highestFail = currentAttempt;
@@ -114,6 +135,9 @@ public class BlockStatsTest extends ClientCoderTest {
                 if (currentAttempt >= lowestSuccess || currentAttempt <= highestFail) {
                     finished = true;
                     currentAttempt = lowestSuccess;
+                    writer.printf(OUTPUT_FORMAT, txCount, hashFunctionCount, 8, valueSize, 4, currentAttempt,
+                            lastSuccess.encodingTime, lastSuccess.decodingTime);
+                    writer.flush();
                     highestFail = 0;
                 }
             }
@@ -121,7 +145,7 @@ public class BlockStatsTest extends ClientCoderTest {
         writer.close();
     }
 
-    public boolean testBlockStats(int transactionCount) throws IOException {
+    public BlockStatsResult testBlockStats(int transactionCount) throws IOException {
         TransactionCollectorProcessor transactionCollector = new TransactionCollectorProcessor();
         int diffCount = transactionCount / DIVISOR;
         transactionCollector.count = transactionCount + diffCount;
@@ -142,16 +166,25 @@ public class BlockStatsTest extends ClientCoderTest {
 
         replay(recreatedBlock, myBlock);
 
+        BlockStatsResult result = new BlockStatsResult();
+
+        long startTime = System.currentTimeMillis();
         IBLT iblt = sut.encode(myBlock);
+        result.encodingTime = System.currentTimeMillis() - startTime;
+
+        startTime = System.currentTimeMillis();
         Block resultBlock = sut.decode(recreatedBlock, iblt, myTransactions);
-        //assertNotNull("Set reconciliation failed!", resultBlock);
+        result.decodingTime = System.currentTimeMillis() - startTime;
+
         if (resultBlock == null) {
-            return false;
+            result.success = false;
+            return result;
         }
 
-        List<Transaction> result = capture.getValues();
-        assertListsEqual(sortedBlockTransactions, result);
-        return true;
+        List<Transaction> decodedTransaction = capture.getValues();
+        assertListsEqual(sortedBlockTransactions, decodedTransaction);
+        result.success = true;
+        return result;
     }
 
     private List<Transaction> createDifferences(List<Transaction> blockTransactions, int diffCount) {

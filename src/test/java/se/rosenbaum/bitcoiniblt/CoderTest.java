@@ -3,6 +3,7 @@ package se.rosenbaum.bitcoiniblt;
 import com.google.bitcoin.core.Sha256Hash;
 import com.google.bitcoin.core.Transaction;
 import com.google.bitcoin.core.TransactionInput;
+import com.google.bitcoin.core.TransactionOutPoint;
 import org.easymock.EasyMockSupport;
 
 import java.util.ArrayList;
@@ -10,7 +11,7 @@ import java.util.List;
 
 import static org.easymock.EasyMock.expect;
 
-public class CoderTest extends EasyMockSupport {
+public abstract class CoderTest extends EasyMockSupport {
     private static final String ZERO = "0000000000000000000000000000000000000000000000000000000000000000";
     private int hashValue = 0;
 
@@ -19,15 +20,17 @@ public class CoderTest extends EasyMockSupport {
         return new Sha256Hash(hash64);
     }
 
-    public Transaction t(String... hashes) {
+    public Transaction t(String... inputHashes) {
         Transaction t1 = createMock(Transaction.class);
         List<TransactionInput> inputs = new ArrayList<TransactionInput>();
-        for (String hash : hashes) {
+        long i = 0;
+        for (String inputHash : inputHashes) {
             TransactionInput input = createMock(TransactionInput.class);
-            Transaction inputTransaction = createMock(Transaction.class);
+            TransactionOutPoint outpoint = createMock(TransactionOutPoint.class);
 
-            expect(input.getParentTransaction()).andReturn(inputTransaction).anyTimes();
-            expect(inputTransaction.getHash()).andReturn(createHash(hash)).anyTimes();
+            expect(input.getOutpoint()).andReturn(outpoint).anyTimes();
+            expect(outpoint.getHash()).andReturn(createHash(inputHash)).anyTimes();
+            expect(outpoint.getIndex()).andReturn(i++).anyTimes();
             inputs.add(input);
         }
         expect(t1.getInputs()).andReturn(inputs).anyTimes();

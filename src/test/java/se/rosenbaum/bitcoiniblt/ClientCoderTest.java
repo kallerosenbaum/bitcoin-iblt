@@ -144,13 +144,13 @@ public abstract class ClientCoderTest extends CoderTest {
         Block currentBlock = getBlock(blockHash);
         int fetchCount = count;
         int processedCount = 0;
-        outerLoop:
         try {
+            outerLoop:
             while (processedCount < fetchCount) {
                 List<Transaction> otherTransactions = currentBlock.getTransactions();
                 for (int i = 0; i < otherTransactions.size(); i++) {
                     processor.process(otherTransactions.get(i));
-                    if (processedCount++ == fetchCount) {
+                    if (++processedCount == fetchCount) {
                         break outerLoop;
                     }
                 }

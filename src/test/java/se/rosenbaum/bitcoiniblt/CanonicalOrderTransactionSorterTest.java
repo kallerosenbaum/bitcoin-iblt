@@ -1,6 +1,6 @@
 package se.rosenbaum.bitcoiniblt;
 
-import com.google.bitcoin.core.Transaction;
+import org.bitcoinj.core.Transaction;
 import org.junit.Before;
 import org.junit.Test;
 

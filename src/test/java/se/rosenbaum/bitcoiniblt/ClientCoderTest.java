@@ -1,9 +1,9 @@
 package se.rosenbaum.bitcoiniblt;
 
-import com.google.bitcoin.core.*;
-import com.google.bitcoin.kits.WalletAppKit;
-import com.google.bitcoin.params.TestNet3Params;
-import com.google.bitcoin.store.BlockStoreException;
+import org.bitcoinj.core.*;
+import org.bitcoinj.kits.WalletAppKit;
+import org.bitcoinj.params.TestNet3Params;
+import org.bitcoinj.store.BlockStoreException;
 import org.junit.After;
 import org.junit.Before;
 import org.slf4j.Logger;

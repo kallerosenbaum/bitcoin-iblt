@@ -1,7 +1,7 @@
 package se.rosenbaum.bitcoiniblt;
 
-import com.google.bitcoin.core.*;
-import com.google.bitcoin.params.MainNetParams;
+import org.bitcoinj.core.*;
+import org.bitcoinj.params.MainNetParams;
 import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
@@ -71,7 +71,6 @@ public class BlockStatsTest extends ClientCoderTest {
     private TransactionSorter sorter;
     private BlockCoder sut;
 
-    private static final int DIVISOR = 60;
     public static final String OUTPUT_FORMAT = "%s,%s,%s,%s,%s,%s,%s,%s,%s\n";
     public static final String LOGGER_FORMAT = "{},{},{},{},{},{},{},{},{}";
     private PrintWriter writer;
@@ -97,13 +96,17 @@ public class BlockStatsTest extends ClientCoderTest {
 
     private static class TestConfig {
         int txCount;
+        int extraTxCount;
+        int absentTxCount;
         int hashFunctionCount;
         int keySize;
         int valueSize;
         int keyHashSize;
         int cellCount;
-        private TestConfig(int txCount, int hashFunctionCount, int keySize, int valueSize, int keyHashSize, int cellCount) {
+        private TestConfig(int txCount, int extraTxCount, int absentTxCount, int hashFunctionCount, int keySize, int valueSize, int keyHashSize, int cellCount) {
             this.txCount = txCount;
+            this.extraTxCount = extraTxCount;
+            this.absentTxCount = absentTxCount;
             this.hashFunctionCount = hashFunctionCount;
             this.keySize = keySize;
             this.valueSize = valueSize;
@@ -114,6 +117,11 @@ public class BlockStatsTest extends ClientCoderTest {
         public int getIbltSize() {
             return cellCount * (keySize + valueSize + keyHashSize + 4/*counter*/);
         }
+    }
+
+    private static class TransactionSets {
+        List<Transaction> sendersTransactions;
+        List<Transaction> receiversTransactions;
     }
 
     private void logResult(TestConfig config, BlockStatsResult result) {
@@ -153,7 +161,7 @@ public class BlockStatsTest extends ClientCoderTest {
         setupResultPrinter(filePrefix + ".csv");
 
         int cellCountStart = 8192*2*2*2*2;
-        TestConfig config = new TestConfig(3000, 1, 8, 270, 4, cellCountStart);
+        TestConfig config = new TestConfig(50, 50, 50, 1, 8, 270, 4, cellCountStart);
 
         Interval interval = new Interval(0, config.cellCount);
 
@@ -213,7 +221,7 @@ public class BlockStatsTest extends ClientCoderTest {
         String filePrefix = "valueSize-cellCount-Stats";
         setupResultPrinter(filePrefix + ".csv");
 
-        TestConfig config = new TestConfig(3000, 4, 8, 8, 4, 32384);
+        TestConfig config = new TestConfig(50, 50, 50, 4, 8, 8, 4, 32384);
         Interval interval = new Interval(0, config.cellCount);
 
         int[] category = new int[] {8, 16, 32, 64, 128, 256, 270, 280, 512, 1024, 2048};
@@ -257,14 +265,13 @@ public class BlockStatsTest extends ClientCoderTest {
     public BlockStatsResult testBlockStats(TestConfig config) throws IOException {
         createBlockCoder(config);
         TransactionCollectorProcessor transactionCollector = new TransactionCollectorProcessor();
-        int diffCount = config.txCount / DIVISOR;
-        transactionCollector.count = config.txCount + diffCount;
+        transactionCollector.count = config.txCount + config.absentTxCount;
 
         processTransactions(MAINNET_BLOCK, Integer.MAX_VALUE, transactionCollector);
         List<Transaction> blockTransactions = transactionCollector.transactions;
-        List<Transaction> myTransactions = createDifferences(blockTransactions, diffCount);
+        TransactionSets sets = createDifferences(blockTransactions, config);
 
-        List<Transaction> sortedBlockTransactions = sorter.sort(blockTransactions);
+        List<Transaction> sortedBlockTransactions = sorter.sort(sets.sendersTransactions);
 
         Block myBlock = EasyMock.createMock(Block.class);
         expect(myBlock.getTransactions()).andReturn(sortedBlockTransactions);
@@ -283,7 +290,7 @@ public class BlockStatsTest extends ClientCoderTest {
         result.encodingTime = System.currentTimeMillis() - startTime;
 
         startTime = System.currentTimeMillis();
-        Block resultBlock = sut.decode(recreatedBlock, iblt, myTransactions);
+        Block resultBlock = sut.decode(recreatedBlock, iblt, sets.receiversTransactions);
         result.decodingTime = System.currentTimeMillis() - startTime;
 
         if (resultBlock == null) {
@@ -297,20 +304,29 @@ public class BlockStatsTest extends ClientCoderTest {
         return result;
     }
 
-    private List<Transaction> createDifferences(List<Transaction> blockTransactions, int diffCount) {
-        List<Transaction> result = new ArrayList<Transaction>(blockTransactions);
-        if (diffCount == 0) {
-            return result;
-        }
-        assertTrue(diffCount < blockTransactions.size());
-        // Remove different transactions from both result and blockTransactions
-        for (int i = 0; i < diffCount; i++) {
-            int removalIndex = i * 2;
-            result.remove(removalIndex); // When i == 0, this will remove the coinbase tx, which is realistic since
-                                         // the receiver cannot possibly have it.
-            blockTransactions.remove(removalIndex + 1);
-        }
-        return result;
+    private TransactionSets createDifferences(List<Transaction> collectedTransactions, TestConfig config) {
+        assertTrue(config.txCount + config.absentTxCount == collectedTransactions.size());
+        assertTrue(config.extraTxCount + config.absentTxCount <= collectedTransactions.size());
+
+        TransactionSets sets = new TransactionSets();
+        sets.receiversTransactions = new ArrayList<Transaction>(collectedTransactions);
+        sets.sendersTransactions = new ArrayList<Transaction>(collectedTransactions);
+        List<Transaction> send = sets.sendersTransactions;
+        List<Transaction> rec = sets.receiversTransactions;
+
+        send.removeAll(send.subList(rec.size() - config.absentTxCount, rec.size()));
+        rec.removeAll(rec.subList(0, config.extraTxCount));
+//        send.removeAll(send.subList(1, config.absentTxCount + 1));
+//        rec.removeAll(rec.subList(rec.size() - config.extraTxCount, rec.size()));
+//        for (int i = 0; i < config.extraTxCount; i++) {
+//            int removalIndex = i * 2;
+//            rec.remove(removalIndex); // When i == 0, this will remove the coinbase tx, which is realistic since
+//            // the receiver cannot possibly have it.
+//            send.remove(removalIndex + 1);
+//
+//        }
+
+        return sets;
     }
 
     private void assertListsEqual(List expected, List actual) {

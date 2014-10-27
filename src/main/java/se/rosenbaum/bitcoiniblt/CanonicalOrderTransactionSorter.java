@@ -1,8 +1,8 @@
 package se.rosenbaum.bitcoiniblt;
 
-import com.google.bitcoin.core.Transaction;
-import com.google.bitcoin.core.TransactionInput;
-import com.google.bitcoin.core.TransactionOutPoint;
+import org.bitcoinj.core.Transaction;
+import org.bitcoinj.core.TransactionInput;
+import org.bitcoinj.core.TransactionOutPoint;
 
 import java.math.BigInteger;
 import java.util.ArrayList;

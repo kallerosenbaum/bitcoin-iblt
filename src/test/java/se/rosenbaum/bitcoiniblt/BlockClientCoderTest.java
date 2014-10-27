@@ -1,7 +1,7 @@
 package se.rosenbaum.bitcoiniblt;
 
-import com.google.bitcoin.core.Block;
-import com.google.bitcoin.core.Transaction;
+import org.bitcoinj.core.Block;
+import org.bitcoinj.core.Transaction;
 import org.junit.Before;
 import org.junit.Test;
 import se.rosenbaum.bitcoiniblt.bytearraydata.ByteArrayDataTransactionCoder;

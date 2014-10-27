@@ -10,8 +10,11 @@
 
     <properties>
         <iblt.version>1.0-SNAPSHOT</iblt.version>
-        <bitcoinj.version>0.11.2</bitcoinj.version>
+        <bitcoinj.version>0.12</bitcoinj.version>
         <junit.version>4.11</junit.version>
+        <easymock.version>3.2</easymock.version>
+        <jfreechart.version>1.0.1</jfreechart.version>
+        <slf4j.version>1.7.6</slf4j.version>
     </properties>
 
     <dependencies>
@@ -21,9 +24,10 @@
             <version>${iblt.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.google</groupId>
-            <artifactId>bitcoinj</artifactId>
+            <groupId>org.bitcoinj</groupId>
+            <artifactId>bitcoinj-core</artifactId>
             <version>${bitcoinj.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -35,25 +39,25 @@
         <dependency>
             <groupId>org.easymock</groupId>
             <artifactId>easymock</artifactId>
-            <version>3.2</version>
+            <version>${easymock.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>jfree</groupId>
             <artifactId>jfreechart</artifactId>
-            <version>1.0.1</version>
+            <version>${jfreechart.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.6</version>
+            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
-            <version>1.7.6</version>
+            <version>${slf4j.version}</version>
         </dependency>
 
     </dependencies>

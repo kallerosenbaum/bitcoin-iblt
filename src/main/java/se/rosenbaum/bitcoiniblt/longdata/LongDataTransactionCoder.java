@@ -1,8 +1,8 @@
 package se.rosenbaum.bitcoiniblt.longdata;
 
-import com.google.bitcoin.core.NetworkParameters;
-import com.google.bitcoin.core.Sha256Hash;
-import com.google.bitcoin.core.Transaction;
+import org.bitcoinj.core.NetworkParameters;
+import org.bitcoinj.core.Sha256Hash;
+import org.bitcoinj.core.Transaction;
 import se.rosenbaum.bitcoiniblt.TransactionCoder;
 import se.rosenbaum.iblt.data.LongData;
 

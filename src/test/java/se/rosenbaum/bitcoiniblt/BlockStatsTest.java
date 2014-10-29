@@ -7,14 +7,19 @@ import org.easymock.CaptureType;
 import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import se.rosenbaum.bitcoiniblt.bytearraydata.ByteArrayDataTransactionCoder;
 import se.rosenbaum.bitcoiniblt.bytearraydata.IBLTUtils;
-import se.rosenbaum.bitcoiniblt.chart.BarChart;
+import se.rosenbaum.bitcoiniblt.printer.BlockStatsPrinter;
+import se.rosenbaum.bitcoiniblt.printer.HashCountCellCountPrinter;
+import se.rosenbaum.bitcoiniblt.printer.ValueSizeCellCountPrinter;
+import se.rosenbaum.bitcoiniblt.util.BlockStatsResult;
+import se.rosenbaum.bitcoiniblt.util.Interval;
+import se.rosenbaum.bitcoiniblt.util.ResultStats;
+import se.rosenbaum.bitcoiniblt.util.TestConfig;
+import se.rosenbaum.bitcoiniblt.util.TransactionCollectorProcessor;
+import se.rosenbaum.bitcoiniblt.util.TransactionSets;
 import se.rosenbaum.iblt.IBLT;
 
-import javax.imageio.ImageIO;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,14 +71,8 @@ import static org.junit.Assert.*;
  * we'll have to fake them, but we can still use real world transactions.
  */
 public class BlockStatsTest extends ClientCoderTest {
-    private static Logger logger = LoggerFactory.getLogger(BlockStatsTest.class);
-
     private TransactionSorter sorter;
     private BlockCoder sut;
-
-    public static final String OUTPUT_FORMAT = "%s,%s,%s,%s,%s,%s,%s,%s,%s\n";
-    public static final String LOGGER_FORMAT = "{},{},{},{},{},{},{},{},{}";
-    private PrintWriter writer;
 
     @Before
     public void setup() {
@@ -81,206 +80,111 @@ public class BlockStatsTest extends ClientCoderTest {
     }
 
     private void createBlockCoder(TestConfig config) {
-        TransactionCoder transactionCoder = new ByteArrayDataTransactionCoder(getParams(), salt, config.keySize,
-                config.valueSize);
-        IBLT iblt = new IBLTUtils().createIblt(config.cellCount, config.hashFunctionCount, config.keySize,
-                config.valueSize, config.keyHashSize);
+        TransactionCoder transactionCoder = new ByteArrayDataTransactionCoder(getParams(), salt, config.getKeySize(),
+                config.getValueSize());
+        IBLT iblt = new IBLTUtils().createIblt(config.getCellCount(), config.getHashFunctionCount(), config.getKeySize(),
+                config.getValueSize(), config.getKeyHashSize());
         sut = new BlockCoder(iblt, transactionCoder, sorter);
-    }
-
-    private static class BlockStatsResult {
-        boolean success;
-        long encodingTime;
-        long decodingTime;
-    }
-
-    private static class TestConfig {
-        int txCount;
-        int extraTxCount;
-        int absentTxCount;
-        int hashFunctionCount;
-        int keySize;
-        int valueSize;
-        int keyHashSize;
-        int cellCount;
-        public boolean randomTxSelection;
-
-        private TestConfig(int txCount, int extraTxCount, int absentTxCount, int hashFunctionCount, int keySize,
-                           int valueSize, int keyHashSize, int cellCount, boolean randomTxSelection) {
-            this.txCount = txCount;
-            this.extraTxCount = extraTxCount;
-            this.absentTxCount = absentTxCount;
-            this.hashFunctionCount = hashFunctionCount;
-            this.keySize = keySize;
-            this.valueSize = valueSize;
-            this.keyHashSize = keyHashSize;
-            this.cellCount = cellCount;
-            this.randomTxSelection = randomTxSelection;
-        }
-
-        public int getIbltSize() {
-            return cellCount * (keySize + valueSize + keyHashSize + 4/*counter*/);
-        }
-    }
-
-    private static class TransactionSets {
-        List<Transaction> sendersTransactions;
-        List<Transaction> receiversTransactions;
-    }
-
-    private void logResult(TestConfig config, BlockStatsResult result) {
-        logger.info(LOGGER_FORMAT, config.txCount, config.hashFunctionCount, config.keySize, config.valueSize,
-                config.keyHashSize, config.cellCount,
-                result.encodingTime, result.decodingTime, result.success ? "success" : "fail");
-    }
-    private void printResult(TestConfig config, BlockStatsResult result) {
-        writer.printf(OUTPUT_FORMAT, config.txCount, config.hashFunctionCount, config.keySize,
-                config.valueSize, config.keyHashSize,
-                config.cellCount, result.encodingTime, result.decodingTime, config.getIbltSize());
-        writer.flush();
-    }
-
-    private static class Interval {
-        int low;
-        int high;
-
-        private Interval(int low, int high) {
-            this.low = low;
-            this.high = high;
-        }
-
-        private int nextValue(TestConfig config) {
-            int next = high - (high - low)/2;
-            // Must be a multiple of hashFunctionCount;
-            return next - next % config.hashFunctionCount;
-        }
-        private boolean isInsideInterval(int value) {
-            return value < high && value > low;
-        }
     }
 
     @Test
     public void testHashFunctionCountVsCellCount() throws IOException {
-        String filePrefix = "hfCount-cellCount-Stats";
-        setupResultPrinter(filePrefix + ".csv");
-
         int cellCountStart = 8192*2*2*2*2;
         TestConfig config = new TestConfig(50, 50, 50, 1, 8, 270, 4, cellCountStart, false);
 
-        Interval interval = new Interval(0, config.cellCount);
+        Interval interval = new Interval(0, config.getCellCount());
 
         int minHashFunctionCount = 2;
         int maxHashFunctionCount = 10;
-        int[] category = new int[maxHashFunctionCount-minHashFunctionCount + 1];
-        int[] yValues = new int[category.length];
+        BlockStatsPrinter printer = new HashCountCellCountPrinter(tempDirectory, "hfCount-cellCount-Stats", maxHashFunctionCount-minHashFunctionCount + 1);
 
         for (int i = minHashFunctionCount; i <= maxHashFunctionCount; i++) {
-            config.hashFunctionCount = i; // 8 --> 4096 bytes
+            config.setHashFunctionCount(i);
 
             BlockStatsResult lastSuccessResult = null;
-            interval.low = 0;
-            interval.high = cellCountStart;
+            interval.setLow(0);
+            interval.setHigh(cellCountStart);
             // must be a multiple of hashFunctionCount
-            config.cellCount = interval.high - interval.high%config.hashFunctionCount;
+            config.setCellCount(interval.getHigh() - interval.getHigh() % config.getHashFunctionCount());
 
             while (true) {
                 BlockStatsResult result = testBlockStats(config);
-                logResult(config, result);
-                if (result.success) {
+                printer.logResult(config, result);
+                if (result.isSuccess()) {
                     lastSuccessResult = result;
-                    interval.high = config.cellCount;
+                    interval.setHigh(config.getCellCount());
                 } else {
-                    interval.low = config.cellCount;
+                    interval.setLow(config.getCellCount());
                 }
-                config.cellCount = interval.nextValue(config);
+                config.setCellCount(interval.nextValue(config));
 
-                if (!interval.isInsideInterval(config.cellCount)) {
-                    config.cellCount = interval.high;
-                    printResult(config, lastSuccessResult);
-                    category[i-minHashFunctionCount] = i;
-                    yValues[i-minHashFunctionCount] = config.getIbltSize();
+                if (!interval.isInsideInterval(config.getCellCount())) {
+                    config.setCellCount(interval.getHigh());
+                    printer.addResult(config, lastSuccessResult);
                     break;
                 }
             }
         }
-        writer.close();
-        createImage(filePrefix, category, yValues, "hash function count", "Minimum IBLT size [bytes]");
-    }
-
-    private void createImage(String fileName, int[] category, int[] yValues, String categoryCaption,
-                             String valueCaption) throws IOException {
-        BarChart barChart = new BarChart(category, yValues, categoryCaption, valueCaption);
-
-        OutputStream out = new FileOutputStream(new File(tempDirectory, fileName + ".png"));
-        try {
-            ImageIO.write(barChart.getImage(), "png", out);
-        } catch (IOException e) {
-            logger.error("Failed to write image.", e);
-        }
-        out.close();
+        printer.close();
     }
 
     @Test
     public void testValueSizeVsCellCount() throws IOException {
-        String filePrefix = "valueSize-cellCount-Stats";
-        setupResultPrinter(filePrefix + ".csv");
-
         TestConfig config = new TestConfig(50, 50, 50, 4, 8, 8, 4, 32384, false);
-        Interval interval = new Interval(0, config.cellCount);
+        Interval interval = new Interval(0, config.getCellCount());
 
         int[] category = new int[] {8, 16, 32, 64, 128, 256, 270, 280, 512, 1024, 2048};
-        int[] yValues = new int[category.length];
+        BlockStatsPrinter writer = new ValueSizeCellCountPrinter(tempDirectory, "valueSize-cellCount-Stats", category.length);
 
         for (int i = 0; i < category.length; i++) {
-            config.valueSize = category[i];
+            config.setValueSize(category[i]);
 
             BlockStatsResult lastSuccessResult = null;
             while (true) {
                 BlockStatsResult result = testBlockStats(config);
-                logResult(config, result);
-                if (result.success) {
+                writer.logResult(config, result);
+                if (result.isSuccess()) {
                     lastSuccessResult = result;
-                    interval.high = config.cellCount;
+                    interval.setHigh(config.getCellCount());
                 } else {
-                    interval.low = config.cellCount;
+                    interval.setLow(config.getCellCount());
                 }
-                config.cellCount = interval.nextValue(config);
+                config.setCellCount(interval.nextValue(config));
 
-                if (!interval.isInsideInterval(config.cellCount)) {
-                    config.cellCount = interval.high;
-                    printResult(config, lastSuccessResult);
-                    yValues[i] = config.getIbltSize();
-                    interval.low = 0;
+                if (!interval.isInsideInterval(config.getCellCount())) {
+                    config.setCellCount(interval.getHigh());
+                    writer.addResult(config, lastSuccessResult);
+                    interval.setLow(0);
                     break;
                 }
             }
         }
         writer.close();
-        createImage(filePrefix, category, yValues, "value size [B]", "Minimum IBLT size [B]");
     }
 
     @Test
     public void testCellCountVSFailureProbability() throws IOException {
         String filePrefix = "cellCount-failureProbability-Stats";
 
-        writer = new PrintWriter(new FileWriter(new File(tempDirectory, filePrefix + ".csv")));
+        PrintWriter writer = new PrintWriter(new FileWriter(new File(tempDirectory, filePrefix + ".csv")));
         String format = "%s,%s,%s,%s,%s,%s,%s,%s\n";
         writer.printf(format, "txcount", "hashFunctionCount", "keySize [B]", "valueSize [B]", "keyHashSize [B]",
                 "cellCount", "failureCount", "successCount");
 
-        int startCellCount = 300;
-        TestConfig config = new TestConfig(50, 50, 50, 3, 8, 270, 4, 0, true);
+        int startCellCount = 2400;
+        TestConfig config = new TestConfig(500, 500, 500, 3, 8, 270, 4, 0, true);
 
         int dataPoints = 50;
 
         List<ResultStats> resultStatsList = new ArrayList<ResultStats>(dataPoints);
 
         for (int i = 0; i < dataPoints; i++) {
-            config.cellCount = startCellCount + i*60;
+            config.setCellCount(startCellCount + i*60);
             ResultStats resultStats = testCellCountVSFailureProbability(config);
             resultStatsList.add(resultStats);
-            writer.printf(format, config.txCount, config.hashFunctionCount, config.keySize,
-            config.valueSize, config.keyHashSize, config.cellCount, resultStats.failures, resultStats.successes);
+            writer.printf(format, config.getTxCount(), config.getHashFunctionCount(), config.getKeySize(),
+                    config.getValueSize(), config.getKeyHashSize(), config.getCellCount(), resultStats.getFailures(), resultStats.getSuccesses());
+            writer.flush();
         }
         writer.close();
     }
@@ -288,40 +192,23 @@ public class BlockStatsTest extends ClientCoderTest {
     private ResultStats testCellCountVSFailureProbability(TestConfig config) throws IOException {
         ResultStats stats = new ResultStats(config);
 
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < 100; i++) {
             BlockStatsResult result = testBlockStats(config);
-            if (result.success) {
-                stats.successes++;
+            if (result.isSuccess()) {
+                stats.setSuccesses(stats.getSuccesses() + 1);
             } else {
-                stats.failures++;
+                stats.setFailures(stats.getFailures() + 1);
             }
-            if (i % 1000 == 0) logResult(config, result);
+            //if (i % 1000 == 0) logResult(config, result);
         }
         return stats;
-    }
-
-    private class ResultStats {
-        int successes = 0;
-        int failures = 0;
-        TestConfig config;
-
-        public ResultStats(TestConfig config) {
-            this.config = config;
-        }
-    }
-
-    private void setupResultPrinter(String fileName) throws IOException {
-        writer = new PrintWriter(new FileWriter(new File(tempDirectory, fileName)));
-        writer.printf(OUTPUT_FORMAT, "txcount", "hashFunctionCount", "keySize [B]", "valueSize [B]", "keyHashSize [B]",
-                "cellCount",
-                "encodeTime [ms]", "decodeTime [ms]", "minIBLTSize [B]");
     }
 
     public BlockStatsResult testBlockStats(TestConfig config) throws IOException {
         createBlockCoder(config);
         TransactionSets sets = createTransactionSets(config);
 
-        List<Transaction> sortedBlockTransactions = sorter.sort(sets.sendersTransactions);
+        List<Transaction> sortedBlockTransactions = sorter.sort(sets.getSendersTransactions());
 
         Block myBlock = EasyMock.createMock(Block.class);
         expect(myBlock.getTransactions()).andReturn(sortedBlockTransactions);
@@ -337,47 +224,45 @@ public class BlockStatsTest extends ClientCoderTest {
 
         long startTime = System.currentTimeMillis();
         IBLT iblt = sut.encode(myBlock);
-        result.encodingTime = System.currentTimeMillis() - startTime;
+        result.setEncodingTime(System.currentTimeMillis() - startTime);
 
         startTime = System.currentTimeMillis();
-        Block resultBlock = sut.decode(recreatedBlock, iblt, sets.receiversTransactions);
-        result.decodingTime = System.currentTimeMillis() - startTime;
+        Block resultBlock = sut.decode(recreatedBlock, iblt, sets.getReceiversTransactions());
+        result.setDecodingTime(System.currentTimeMillis() - startTime);
 
         if (resultBlock == null) {
-            result.success = false;
+            result.setSuccess(false);
             return result;
         }
 
         List<Transaction> decodedTransaction = capture.getValues();
         assertListsEqual(sortedBlockTransactions, decodedTransaction);
-        result.success = true;
+        result.setSuccess(true);
         return result;
     }
 
-
-
     private TransactionSets createTransactionSets(TestConfig config) {
         List<Transaction> collectedTransactions;
-        if (config.randomTxSelection) {
-            collectedTransactions = getRandomTransactions(config.txCount + config.absentTxCount);
+        if (config.isRandomTxSelection()) {
+            collectedTransactions = getRandomTransactions(config.getTxCount() + config.getAbsentTxCount());
         } else {
-            collectedTransactions = getSameOldTransactions(config.txCount + config.absentTxCount);
+            collectedTransactions = getSameOldTransactions(config.getTxCount() + config.getAbsentTxCount());
         }
 
-        assertTrue(config.txCount + config.absentTxCount == collectedTransactions.size());
-        assertTrue(config.extraTxCount + config.absentTxCount <= collectedTransactions.size());
+        assertTrue(config.getTxCount() + config.getAbsentTxCount() == collectedTransactions.size());
+        assertTrue(config.getExtraTxCount() + config.getAbsentTxCount() <= collectedTransactions.size());
 
         TransactionSets sets = new TransactionSets();
-        sets.receiversTransactions = new ArrayList<Transaction>(collectedTransactions);
-        sets.sendersTransactions = new ArrayList<Transaction>(collectedTransactions);
-        List<Transaction> send = sets.sendersTransactions;
-        List<Transaction> rec = sets.receiversTransactions;
+        sets.setReceiversTransactions(new ArrayList<Transaction>(collectedTransactions));
+        sets.setSendersTransactions(new ArrayList<Transaction>(collectedTransactions));
+        List<Transaction> send = sets.getSendersTransactions();
+        List<Transaction> rec = sets.getReceiversTransactions();
 
-        send.removeAll(send.subList(rec.size() - config.absentTxCount, rec.size()));
-        rec.removeAll(rec.subList(0, config.extraTxCount));
+        send.removeAll(send.subList(rec.size() - config.getAbsentTxCount(), rec.size()));
+        rec.removeAll(rec.subList(0, config.getExtraTxCount()));
 
-        assertEquals(config.txCount, send.size());
-        assertEquals(config.txCount, rec.size());
+        assertEquals(config.getTxCount(), send.size());
+        assertEquals(config.getTxCount(), rec.size());
         for (Transaction transaction : rec) {
             assertFalse(send.contains(transaction));
         }
@@ -386,20 +271,10 @@ public class BlockStatsTest extends ClientCoderTest {
     }
 
     private List<Transaction> getSameOldTransactions(int txCount) {
-        TransactionCollectorProcessor transactionCollector = new TransactionCollectorProcessor();
-        transactionCollector.count = txCount;
+        TransactionCollectorProcessor transactionCollector = new TransactionCollectorProcessor(txCount);
 
         processTransactions(MAINNET_BLOCK, Integer.MAX_VALUE, transactionCollector);
-        return transactionCollector.transactions;
-    }
-
-    private List<Transaction> getRandomTransactions(TestConfig config) {
-        getRandomTransactions(config.txCount + config.absentTxCount);
-        TransactionCollectorProcessor transactionCollector = new TransactionCollectorProcessor();
-        transactionCollector.count = config.txCount + config.absentTxCount;
-
-        processTransactions(MAINNET_BLOCK, Integer.MAX_VALUE, transactionCollector);
-        return transactionCollector.transactions;
+        return transactionCollector.getTransactions();
     }
 
     private void assertListsEqual(List expected, List actual) {
@@ -410,26 +285,6 @@ public class BlockStatsTest extends ClientCoderTest {
         assertNotNull(actual);
         assertEquals(expected.size(), actual.size());
         assertArrayEquals(expected.toArray(new Object[0]), actual.toArray(new Object[0]));
-    }
-
-    private class TransactionCollectorProcessor implements TransactionProcessor {
-        private List<Transaction> transactions = new ArrayList<Transaction>();
-        private int count;
-        @Override
-        public void process(Transaction transaction) throws StopProcessingException {
-            if (transaction.isCoinBase()) {
-                if (transactions.size() == 0) {
-                    transactions.add(transaction);
-                } else {
-                    return;
-                }
-            } else {
-                transactions.add(transaction);
-            }
-            if (transactions.size() == count) {
-                throw new StopProcessingException();
-            }
-        }
     }
 
     public NetworkParameters getParams() {

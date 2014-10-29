@@ -14,7 +14,7 @@ import java.util.Set;
  * Date: 10/28/14 9:34 PM
  */
 public class ByteArrayDataTransactionCoderTest {
-    @Test
+//    @Test
     public void testDecodeTransactions() throws Exception {
         ByteArrayDataTransactionCoder sut = new ByteArrayDataTransactionCoder(MainNetParams.get(), new byte[32], 8, 1);
         Map<ByteArrayData, ByteArrayData> map = new HashMap<ByteArrayData, ByteArrayData>();

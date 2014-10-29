@@ -9,15 +9,17 @@ import org.junit.After;
 import org.junit.Before;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import se.rosenbaum.bitcoiniblt.util.TransactionProcessor;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -63,13 +65,13 @@ public abstract class ClientCoderTest extends CoderTest {
 
     private void startWallet() {
         walletAppKit = new WalletAppKit(getParams(), walletDirectory, "iblt" + getParams().getClass().getSimpleName());
-        walletAppKit.startAndWait();
+        walletAppKit.startAsync().awaitRunning();
     }
 
     @After
-    public void tearDown() throws ExecutionException, InterruptedException {
+    public void tearDown() throws ExecutionException, InterruptedException, TimeoutException {
         if (walletAppKit != null) {
-            walletAppKit.stopAndWait();
+            walletAppKit.stopAsync().awaitTerminated(1L, TimeUnit.MINUTES);
         }
     }
 

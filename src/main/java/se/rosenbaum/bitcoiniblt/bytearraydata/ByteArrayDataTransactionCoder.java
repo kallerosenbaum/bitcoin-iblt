@@ -51,12 +51,13 @@ public class ByteArrayDataTransactionCoder implements TransactionCoder<ByteArray
     }
 
     public List<Transaction> decodeTransactions(Map<ByteArrayData, ByteArrayData> entries) {
-        Map<String, byte[]> transactionGroups = new HashMap<String, byte[]>();
+        Map<ByteArrayData, byte[]> transactionGroups = new HashMap<ByteArrayData, byte[]>();
+        int i = 0;
         for (Map.Entry<ByteArrayData, ByteArrayData> entry : entries.entrySet()) {
             byte[] key = entry.getKey().getValue();
             char keyCounter = ByteBuffer.wrap(key, keySize - 2, 2).getChar();
 
-            String keyKey = new String(key, 0, keySize - 2); // charset does not matter,
+            ByteArrayData keyKey = new ByteArrayData(Arrays.copyOf(key, keySize - 2));
             byte[] value = entry.getValue().getValue();
 
             byte[] txBytes = transactionGroups.get(keyKey);

@@ -1,5 +1,6 @@
 package se.rosenbaum.bitcoiniblt;
 
+import com.google.common.io.PatternFilenameFilter;
 import org.bitcoinj.core.*;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.params.TestNet3Params;
@@ -11,9 +12,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
@@ -42,6 +45,9 @@ public abstract class ClientCoderTest extends CoderTest {
     protected File tempDirectory;
     private File blockDirectory;
     private File walletDirectory;
+    private String[] files;
+    private Random random;
+    private Map<Sha256Hash, Block> blockCache = new HashMap<Sha256Hash, Block>();
 
     @Before
     public void setupWallet() throws ExecutionException, InterruptedException, BlockStoreException {
@@ -70,9 +76,15 @@ public abstract class ClientCoderTest extends CoderTest {
     public Block getBlock(Sha256Hash blockId) {
         try {
             logger.debug("Getting block {}", blockId);
-            Block block = readBlockFromDisk(blockId);
+            Block block = blockCache.get(blockId);
             if (block != null) {
                 logger.debug("found in cache!");
+                return block;
+            }
+            block = readBlockFromDisk(blockId);
+            if (block != null) {
+                logger.debug("found on file system!");
+                blockCache.put(blockId, block);
                 return block;
             }
 
@@ -82,6 +94,7 @@ public abstract class ClientCoderTest extends CoderTest {
             block = walletAppKit.peerGroup().getDownloadPeer().getBlock(blockId).get();
             logger.debug("downladed!");
             saveBlockToDisk(block);
+            blockCache.put(blockId, block);
             return block;
         } catch (Exception e) {
             e.printStackTrace();
@@ -137,6 +150,55 @@ public abstract class ClientCoderTest extends CoderTest {
 
     public NetworkParameters getParams() {
         return TestNet3Params.get();
+    }
+
+    // I know, I know. It's not random since different blocks contains
+    // different number of tx. Transactions in Blocks with few transactions
+    // will have a higher frequency, but who gives?
+    private Transaction getRandomTransaction(boolean coinbase) {
+        if (files == null) {
+            files = blockDirectory.list(new PatternFilenameFilter("0{10}[0-9a-f]{54}"));
+        }
+
+        assertTrue(1000 <= files.length);
+        if (random == null) {
+            random = new Random();
+        }
+        int blockIndex = random.nextInt(1000);
+        Block block = getBlock(new Sha256Hash(files[blockIndex]));
+        while (!coinbase && block.getTransactions().size() == 1) {
+            blockIndex = random.nextInt(1000);
+            block = getBlock(new Sha256Hash(files[blockIndex]));
+        }
+        int txIndex = coinbase ? 0 : random.nextInt(block.getTransactions().size() - 1) + 1;
+        return block.getTransactions().get(txIndex);
+    }
+
+    protected List<Transaction> getRandomTransactions(int transactionCount) {
+        downloadBlocks(1000);
+        List<Transaction> result = new ArrayList<Transaction>(transactionCount);
+
+        if (transactionCount == 0) {
+            return result;
+        }
+        // First get a random coinbase tx
+        result.add(getRandomTransaction(true));
+
+        for (int i = 1; i < transactionCount; i++) {
+            Transaction randomTransaction = getRandomTransaction(false);
+            while (result.contains(randomTransaction)) {
+                randomTransaction = getRandomTransaction(false);
+            }
+            result.add(randomTransaction);
+        }
+        return result;
+    }
+
+    private void downloadBlocks(int count) {
+        Block block = getBlock(new Sha256Hash(MAINNET_BLOCK));
+        for (int i = 1; i < count; i++) {
+            block = getBlock(block.getPrevBlockHash());
+        }
     }
 
     protected void processTransactions(String startBlockHash, int count, TransactionProcessor processor) {

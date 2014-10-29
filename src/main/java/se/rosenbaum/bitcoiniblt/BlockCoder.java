@@ -7,6 +7,7 @@ import se.rosenbaum.iblt.data.Data;
 import se.rosenbaum.iblt.util.ResidualData;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -50,9 +51,12 @@ public class BlockCoder<K extends Data, V extends Data> {
         if (residualData == null) {
             return null;
         }
-        mutableList.removeAll(transactionCoder.decodeTransactions(residualData.getAbsentEntries()));
-        mutableList.addAll(transactionCoder.decodeTransactions(residualData.getExtraEntries()));
+        Collection absentTransactions = transactionCoder.decodeTransactions(residualData.getAbsentEntries());
+        Collection extraTransactions = transactionCoder.decodeTransactions(residualData.getExtraEntries());
+        mutableList.removeAll(absentTransactions);
+        mutableList.addAll(extraTransactions);
         List<Transaction> sortedTransactions = sorter.sort(mutableList);
+        int i = 0;
         for (Transaction transaction : sortedTransactions) {
             header.addTransaction(transaction);
         }

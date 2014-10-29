@@ -103,7 +103,10 @@ public class BlockStatsTest extends ClientCoderTest {
         int valueSize;
         int keyHashSize;
         int cellCount;
-        private TestConfig(int txCount, int extraTxCount, int absentTxCount, int hashFunctionCount, int keySize, int valueSize, int keyHashSize, int cellCount) {
+        public boolean randomTxSelection;
+
+        private TestConfig(int txCount, int extraTxCount, int absentTxCount, int hashFunctionCount, int keySize,
+                           int valueSize, int keyHashSize, int cellCount, boolean randomTxSelection) {
             this.txCount = txCount;
             this.extraTxCount = extraTxCount;
             this.absentTxCount = absentTxCount;
@@ -112,6 +115,7 @@ public class BlockStatsTest extends ClientCoderTest {
             this.valueSize = valueSize;
             this.keyHashSize = keyHashSize;
             this.cellCount = cellCount;
+            this.randomTxSelection = randomTxSelection;
         }
 
         public int getIbltSize() {
@@ -161,7 +165,7 @@ public class BlockStatsTest extends ClientCoderTest {
         setupResultPrinter(filePrefix + ".csv");
 
         int cellCountStart = 8192*2*2*2*2;
-        TestConfig config = new TestConfig(50, 50, 50, 1, 8, 270, 4, cellCountStart);
+        TestConfig config = new TestConfig(50, 50, 50, 1, 8, 270, 4, cellCountStart, false);
 
         Interval interval = new Interval(0, config.cellCount);
 
@@ -221,7 +225,7 @@ public class BlockStatsTest extends ClientCoderTest {
         String filePrefix = "valueSize-cellCount-Stats";
         setupResultPrinter(filePrefix + ".csv");
 
-        TestConfig config = new TestConfig(50, 50, 50, 4, 8, 8, 4, 32384);
+        TestConfig config = new TestConfig(50, 50, 50, 4, 8, 8, 4, 32384, false);
         Interval interval = new Interval(0, config.cellCount);
 
         int[] category = new int[] {8, 16, 32, 64, 128, 256, 270, 280, 512, 1024, 2048};
@@ -255,6 +259,57 @@ public class BlockStatsTest extends ClientCoderTest {
         createImage(filePrefix, category, yValues, "value size [B]", "Minimum IBLT size [B]");
     }
 
+    @Test
+    public void testCellCountVSFailureProbability() throws IOException {
+        String filePrefix = "cellCount-failureProbability-Stats";
+
+        writer = new PrintWriter(new FileWriter(new File(tempDirectory, filePrefix + ".csv")));
+        String format = "%s,%s,%s,%s,%s,%s,%s,%s\n";
+        writer.printf(format, "txcount", "hashFunctionCount", "keySize [B]", "valueSize [B]", "keyHashSize [B]",
+                "cellCount", "failureCount", "successCount");
+
+        int startCellCount = 300;
+        TestConfig config = new TestConfig(50, 50, 50, 3, 8, 270, 4, 0, true);
+
+        int dataPoints = 50;
+
+        List<ResultStats> resultStatsList = new ArrayList<ResultStats>(dataPoints);
+
+        for (int i = 0; i < dataPoints; i++) {
+            config.cellCount = startCellCount + i*60;
+            ResultStats resultStats = testCellCountVSFailureProbability(config);
+            resultStatsList.add(resultStats);
+            writer.printf(format, config.txCount, config.hashFunctionCount, config.keySize,
+            config.valueSize, config.keyHashSize, config.cellCount, resultStats.failures, resultStats.successes);
+        }
+        writer.close();
+    }
+
+    private ResultStats testCellCountVSFailureProbability(TestConfig config) throws IOException {
+        ResultStats stats = new ResultStats(config);
+
+        for (int i = 0; i < 10000; i++) {
+            BlockStatsResult result = testBlockStats(config);
+            if (result.success) {
+                stats.successes++;
+            } else {
+                stats.failures++;
+            }
+            if (i % 1000 == 0) logResult(config, result);
+        }
+        return stats;
+    }
+
+    private class ResultStats {
+        int successes = 0;
+        int failures = 0;
+        TestConfig config;
+
+        public ResultStats(TestConfig config) {
+            this.config = config;
+        }
+    }
+
     private void setupResultPrinter(String fileName) throws IOException {
         writer = new PrintWriter(new FileWriter(new File(tempDirectory, fileName)));
         writer.printf(OUTPUT_FORMAT, "txcount", "hashFunctionCount", "keySize [B]", "valueSize [B]", "keyHashSize [B]",
@@ -264,12 +319,7 @@ public class BlockStatsTest extends ClientCoderTest {
 
     public BlockStatsResult testBlockStats(TestConfig config) throws IOException {
         createBlockCoder(config);
-        TransactionCollectorProcessor transactionCollector = new TransactionCollectorProcessor();
-        transactionCollector.count = config.txCount + config.absentTxCount;
-
-        processTransactions(MAINNET_BLOCK, Integer.MAX_VALUE, transactionCollector);
-        List<Transaction> blockTransactions = transactionCollector.transactions;
-        TransactionSets sets = createDifferences(blockTransactions, config);
+        TransactionSets sets = createTransactionSets(config);
 
         List<Transaction> sortedBlockTransactions = sorter.sort(sets.sendersTransactions);
 
@@ -304,7 +354,16 @@ public class BlockStatsTest extends ClientCoderTest {
         return result;
     }
 
-    private TransactionSets createDifferences(List<Transaction> collectedTransactions, TestConfig config) {
+
+
+    private TransactionSets createTransactionSets(TestConfig config) {
+        List<Transaction> collectedTransactions;
+        if (config.randomTxSelection) {
+            collectedTransactions = getRandomTransactions(config.txCount + config.absentTxCount);
+        } else {
+            collectedTransactions = getSameOldTransactions(config.txCount + config.absentTxCount);
+        }
+
         assertTrue(config.txCount + config.absentTxCount == collectedTransactions.size());
         assertTrue(config.extraTxCount + config.absentTxCount <= collectedTransactions.size());
 
@@ -316,17 +375,31 @@ public class BlockStatsTest extends ClientCoderTest {
 
         send.removeAll(send.subList(rec.size() - config.absentTxCount, rec.size()));
         rec.removeAll(rec.subList(0, config.extraTxCount));
-//        send.removeAll(send.subList(1, config.absentTxCount + 1));
-//        rec.removeAll(rec.subList(rec.size() - config.extraTxCount, rec.size()));
-//        for (int i = 0; i < config.extraTxCount; i++) {
-//            int removalIndex = i * 2;
-//            rec.remove(removalIndex); // When i == 0, this will remove the coinbase tx, which is realistic since
-//            // the receiver cannot possibly have it.
-//            send.remove(removalIndex + 1);
-//
-//        }
+
+        assertEquals(config.txCount, send.size());
+        assertEquals(config.txCount, rec.size());
+        for (Transaction transaction : rec) {
+            assertFalse(send.contains(transaction));
+        }
 
         return sets;
+    }
+
+    private List<Transaction> getSameOldTransactions(int txCount) {
+        TransactionCollectorProcessor transactionCollector = new TransactionCollectorProcessor();
+        transactionCollector.count = txCount;
+
+        processTransactions(MAINNET_BLOCK, Integer.MAX_VALUE, transactionCollector);
+        return transactionCollector.transactions;
+    }
+
+    private List<Transaction> getRandomTransactions(TestConfig config) {
+        getRandomTransactions(config.txCount + config.absentTxCount);
+        TransactionCollectorProcessor transactionCollector = new TransactionCollectorProcessor();
+        transactionCollector.count = config.txCount + config.absentTxCount;
+
+        processTransactions(MAINNET_BLOCK, Integer.MAX_VALUE, transactionCollector);
+        return transactionCollector.transactions;
     }
 
     private void assertListsEqual(List expected, List actual) {

@@ -56,6 +56,9 @@ public abstract class ClientCoderTest extends CoderTest {
         salt = new byte[32];
         salt[14] = -45; // set something other than 0.
         String tmpDir = System.getProperty("iblt.output.dir", ".");
+        logger.info("System property iblt.output.dir={}", System.getProperty("iblt.output.dir"));
+        logger.info("tmpDir={}", new File(tmpDir).getAbsolutePath());
+
         tempDirectory = new File(new File(tmpDir), "data");
         blockDirectory = new File(tempDirectory, "blocks");
         walletDirectory = new File(tempDirectory, "wallet");

@@ -167,11 +167,11 @@ public class BlockStatsTest extends ClientCoderTest {
         String filePrefix = "cellCount-failureProbability-Stats";
 
         PrintWriter writer = new PrintWriter(new FileWriter(new File(tempDirectory, filePrefix + ".csv")));
-        String format = "%s,%s,%s,%s,%s,%s,%s,%s\n";
+        String format = "%s,%s,%s,%s,%s,%s,%s,%s,%s\n";
         writer.printf(format, "txcount", "hashFunctionCount", "keySize [B]", "valueSize [B]", "keyHashSize [B]",
-                "cellCount", "failureCount", "successCount");
+                "cellCount", "failureCount", "successCount", "failureProbability");
 
-        int startCellCount = 2400;
+        int startCellCount = 2700;
         TestConfig config = new TestConfig(500, 500, 500, 3, 8, 270, 4, 0, true);
 
         int dataPoints = 50;
@@ -183,7 +183,7 @@ public class BlockStatsTest extends ClientCoderTest {
             ResultStats resultStats = testCellCountVSFailureProbability(config);
             resultStatsList.add(resultStats);
             writer.printf(format, config.getTxCount(), config.getHashFunctionCount(), config.getKeySize(),
-                    config.getValueSize(), config.getKeyHashSize(), config.getCellCount(), resultStats.getFailures(), resultStats.getSuccesses());
+                    config.getValueSize(), config.getKeyHashSize(), config.getCellCount(), resultStats.getFailures(), resultStats.getSuccesses(), resultStats.getFailures() / (resultStats.getFailures() + resultStats.getSuccesses()));
             writer.flush();
         }
         writer.close();
@@ -192,7 +192,7 @@ public class BlockStatsTest extends ClientCoderTest {
     private ResultStats testCellCountVSFailureProbability(TestConfig config) throws IOException {
         ResultStats stats = new ResultStats(config);
 
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 10000; i++) {
             BlockStatsResult result = testBlockStats(config);
             if (result.isSuccess()) {
                 stats.setSuccesses(stats.getSuccesses() + 1);

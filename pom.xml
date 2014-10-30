@@ -73,6 +73,9 @@
                     <excludes>
                         <exclude>**/*StatsTest.java</exclude>
                     </excludes>
+                    <systemPropertyVariables>
+                        <iblt.output.dir>${project.basedir}</iblt.output.dir>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <plugin>

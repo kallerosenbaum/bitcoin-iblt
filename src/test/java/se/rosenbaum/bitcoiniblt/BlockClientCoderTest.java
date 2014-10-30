@@ -6,6 +6,7 @@ import org.junit.Before;
 import org.junit.Test;
 import se.rosenbaum.bitcoiniblt.bytearraydata.ByteArrayDataTransactionCoder;
 import se.rosenbaum.bitcoiniblt.bytearraydata.IBLTUtils;
+import se.rosenbaum.bitcoiniblt.util.TransactionProcessor;
 import se.rosenbaum.iblt.IBLT;
 import se.rosenbaum.iblt.data.LongData;
 
@@ -76,6 +77,39 @@ public class BlockClientCoderTest extends ClientCoderTest {
         Block result = sut.decode(block.cloneAsHeader(), iblt, myTransactions);
         assertNotNull(result);
         assertEquals(block, result);
+    }
+
+    protected List<Transaction> getMyTransactions(List<Transaction> blockTransactions, int extraCount, int absentCount) {
+        List<Transaction> myTransactions = new ArrayList<Transaction>(blockTransactions.size());
+        // Mess up the ordering
+        for (int i = blockTransactions.size() - 1; i >= 0; i--) {
+            myTransactions.add(blockTransactions.get(i));
+        }
+
+        // Remove some transactions from my "mempool"
+        assertTrue(extraCount <= myTransactions.size());
+        for (int i = 0; i < extraCount; i++) {
+            myTransactions.remove(myTransactions.size() - 2 - (i*(myTransactions.size()-2)/extraCount));
+        }
+
+        // Add some transactions to my "mempool" that is not in the IBLT
+        TransactionAdder txAdder = new TransactionAdder(myTransactions);
+        processTransactions(getBlock().getPrevBlockHash().toString(), absentCount, txAdder);
+
+        return myTransactions;
+    }
+
+    private class TransactionAdder implements TransactionProcessor {
+        private List<Transaction> transactions;
+
+        private TransactionAdder(List<Transaction> transactions) {
+            this.transactions = transactions;
+        }
+
+        @Override
+        public void process(Transaction transaction) {
+            transactions.add(transaction);
+        }
     }
 
 }

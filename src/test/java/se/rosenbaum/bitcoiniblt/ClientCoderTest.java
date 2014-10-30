@@ -9,7 +9,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import se.rosenbaum.bitcoiniblt.util.TransactionCollectorProcessor;
 import se.rosenbaum.bitcoiniblt.util.TransactionProcessor;
+import se.rosenbaum.bitcoiniblt.util.TransactionSets;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -22,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -47,7 +50,7 @@ public abstract class ClientCoderTest extends CoderTest {
     protected File tempDirectory;
     private File blockDirectory;
     private File walletDirectory;
-    private String[] files;
+    private Sha256Hash[] hashes;
     private Random random;
     private Map<Sha256Hash, Block> blockCache = new HashMap<Sha256Hash, Block>();
 
@@ -161,19 +164,15 @@ public abstract class ClientCoderTest extends CoderTest {
     // different number of tx. Transactions in Blocks with few transactions
     // will have a higher frequency, but who gives?
     private Transaction getRandomTransaction(boolean coinbase) {
-        if (files == null) {
-            files = blockDirectory.list(new PatternFilenameFilter("0{10}[0-9a-f]{54}"));
-        }
-
-        assertTrue(1000 <= files.length);
+        assertTrue(1000 <= hashes.length);
         if (random == null) {
             random = new Random();
         }
         int blockIndex = random.nextInt(1000);
-        Block block = getBlock(new Sha256Hash(files[blockIndex]));
+        Block block = getBlock(hashes[blockIndex]);
         while (!coinbase && block.getTransactions().size() == 1) {
             blockIndex = random.nextInt(1000);
-            block = getBlock(new Sha256Hash(files[blockIndex]));
+            block = getBlock(hashes[blockIndex]);
         }
         int txIndex = coinbase ? 0 : random.nextInt(block.getTransactions().size() - 1) + 1;
         return block.getTransactions().get(txIndex);
@@ -200,9 +199,12 @@ public abstract class ClientCoderTest extends CoderTest {
     }
 
     private void downloadBlocks(int count) {
+        hashes = new Sha256Hash[count];
         Block block = getBlock(new Sha256Hash(MAINNET_BLOCK));
+        hashes[0] = block.getHash();
         for (int i = 1; i < count; i++) {
             block = getBlock(block.getPrevBlockHash());
+            hashes[i] = block.getHash();
         }
     }
 
@@ -228,37 +230,34 @@ public abstract class ClientCoderTest extends CoderTest {
         }
     }
 
-    protected List<Transaction> getMyTransactions(List<Transaction> blockTransactions, int extraCount, int absentCount) {
-        List<Transaction> myTransactions = new ArrayList<Transaction>(blockTransactions.size());
-        // Mess up the ordering
-        for (int i = blockTransactions.size() - 1; i >= 0; i--) {
-           myTransactions.add(blockTransactions.get(i));
+
+    protected TransactionSets createTransactionSets(int txCount, int extraCount, int absentCount, boolean randomSelection) {
+        List<Transaction> collectedTransactions;
+        if (randomSelection) {
+            collectedTransactions = getRandomTransactions(txCount + absentCount);
+        } else {
+            collectedTransactions = getSameOldTransactions(txCount + absentCount);
         }
 
-        // Remove some transactions from my "mempool"
-        assertTrue(extraCount <= myTransactions.size());
-        for (int i = 0; i < extraCount; i++) {
-            myTransactions.remove(myTransactions.size() - 2 - (i*(myTransactions.size()-2)/extraCount));
-        }
+        assertTrue(txCount + absentCount == collectedTransactions.size());
+        assertTrue(extraCount + absentCount <= collectedTransactions.size());
 
-        // Add some transactions to my "mempool" that is not in the IBLT
-        TransactionAdder txAdder = new TransactionAdder(myTransactions);
-        processTransactions(getBlock().getPrevBlockHash().toString(), absentCount, txAdder);
+        TransactionSets sets = new TransactionSets();
+        sets.setReceiversTransactions(new ArrayList<Transaction>(collectedTransactions));
+        sets.setSendersTransactions(new ArrayList<Transaction>(collectedTransactions));
+        List<Transaction> send = sets.getSendersTransactions();
+        List<Transaction> rec = sets.getReceiversTransactions();
 
-        return myTransactions;
+        send.removeAll(send.subList(rec.size() - absentCount, rec.size()));
+        rec.removeAll(rec.subList(0, extraCount));
+
+        return sets;
     }
 
-    private class TransactionAdder implements TransactionProcessor {
-        private List<Transaction> transactions;
+    private List<Transaction> getSameOldTransactions(int txCount) {
+        TransactionCollectorProcessor transactionCollector = new TransactionCollectorProcessor(txCount);
 
-        private TransactionAdder(List<Transaction> transactions) {
-            this.transactions = transactions;
-        }
-
-        @Override
-        public void process(Transaction transaction) {
-            transactions.add(transaction);
-        }
+        processTransactions(MAINNET_BLOCK, Integer.MAX_VALUE, transactionCollector);
+        return transactionCollector.getTransactions();
     }
-
 }

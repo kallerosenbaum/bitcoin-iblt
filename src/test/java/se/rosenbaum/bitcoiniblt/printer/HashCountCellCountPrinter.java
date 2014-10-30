@@ -6,13 +6,13 @@ import se.rosenbaum.bitcoiniblt.util.TestConfig;
 import java.io.File;
 import java.io.IOException;
 
-public class HashCountCellCountPrinter extends BlockStatsPrinter {
-    public HashCountCellCountPrinter(File tempDirectory, String filePrefix, int dataPoints) throws IOException {
-        super(tempDirectory, filePrefix, dataPoints);
+public class HashCountCellCountPrinter extends IBLTSizeBlockStatsPrinter {
+    public HashCountCellCountPrinter(File tempDirectory, int dataPoints) throws IOException {
+        super(tempDirectory, dataPoints);
     }
 
     @Override
-    public void createDataPoint(TestConfig config, BlockStatsResult result) {
+    protected void createDataPoint(TestConfig config, BlockStatsResult result) {
         category[currentDataPoint] = config.getHashFunctionCount();
         yValues[currentDataPoint] = config.getIbltSize();
         currentDataPoint++;
@@ -21,5 +21,10 @@ public class HashCountCellCountPrinter extends BlockStatsPrinter {
     @Override
     protected void createImage() throws IOException {
         createImage("hash function count", "Minimum IBLT size [bytes]");
+    }
+
+    @Override
+    protected String filePrefix() {
+        return "hfCount-cellCount-Stats";
     }
 }

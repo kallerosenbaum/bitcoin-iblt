@@ -17,12 +17,10 @@ import se.rosenbaum.bitcoiniblt.util.BlockStatsResult;
 import se.rosenbaum.bitcoiniblt.util.Interval;
 import se.rosenbaum.bitcoiniblt.util.ResultStats;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
-import se.rosenbaum.bitcoiniblt.util.TransactionCollectorProcessor;
 import se.rosenbaum.bitcoiniblt.util.TransactionSets;
 import se.rosenbaum.iblt.IBLT;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.easymock.EasyMock.expect;
@@ -163,30 +161,49 @@ public class BlockStatsRun extends ClientCoderTest {
         printer.finish();
     }
 
+
+    @Test
+    public void testCreateImage() throws IOException {
+        int dataPoints = 50;
+        int[] category = new int[dataPoints];
+        double[] yValues = new double[dataPoints];
+
+        for (int i = 0; i < dataPoints; i++) {
+            category[i] = 3000 + i;
+            yValues[i] = 2D/((i+1)*2D);
+        }
+        CellCountFailureProbabilityPrinter printer = new CellCountFailureProbabilityPrinter(tempDirectory, dataPoints);
+        printer.createImage(category, yValues);
+    }
+
     @Test
     public void testCellCountVSFailureProbability() throws IOException {
         int dataPoints = 50;
+        int sampleCount = 10000;
         CellCountFailureProbabilityPrinter printer = new CellCountFailureProbabilityPrinter(tempDirectory, dataPoints);
         int startCellCount = 2700;
+        int cellCountIncrement = 60;
         TestConfig config = new TestConfig(500, 500, 500, 3, 8, 270, 4, 0, true);
 
         for (int i = 0; i < dataPoints; i++) {
-            config.setCellCount(startCellCount + i*60);
-            ResultStats resultStats = testCellCountVSFailureProbability(config);
+            config.setCellCount(startCellCount + i* cellCountIncrement);
+            ResultStats resultStats = testCellCountVSFailureProbability(printer, config, sampleCount);
             printer.addResult(config, resultStats);
+//            if (resultStats.getFailures() < 40) {
+//                sampleCount = 10000;
+//            }
         }
         printer.finish();
     }
 
-    private ResultStats testCellCountVSFailureProbability(TestConfig config) throws IOException {
-        ResultStats stats = new ResultStats(config);
+    private ResultStats testCellCountVSFailureProbability(CellCountFailureProbabilityPrinter printer, TestConfig config, int sampleCount) throws IOException {
+        ResultStats stats = new ResultStats();
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < sampleCount; i++) {
             BlockStatsResult result = testBlockStats(config);
-            if (result.isSuccess()) {
-                stats.setSuccesses(stats.getSuccesses() + 1);
-            } else {
-                stats.setFailures(stats.getFailures() + 1);
+            stats.addSample(result.isSuccess());
+            if (i % 100 == 0) {
+                printer.logResult(config, stats);
             }
         }
         return stats;

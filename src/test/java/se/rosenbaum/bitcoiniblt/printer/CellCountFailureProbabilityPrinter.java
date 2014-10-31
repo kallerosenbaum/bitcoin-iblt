@@ -1,30 +1,119 @@
 package se.rosenbaum.bitcoiniblt.printer;
 
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.axis.CategoryLabelPositions;
+import org.jfree.chart.axis.LogarithmicAxis;
+import org.jfree.chart.plot.CategoryPlot;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.plot.XYPlot;
+import org.jfree.data.category.DefaultCategoryDataset;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import se.rosenbaum.bitcoiniblt.chart.BarChart;
 import se.rosenbaum.bitcoiniblt.util.ResultStats;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 public class CellCountFailureProbabilityPrinter extends BlockStatsPrinter {
+    private static final Logger logger = LoggerFactory.getLogger(CellCountFailureProbabilityPrinter.class);
     private final int[] category;
     private final double[] yValues;
-    private static final String FORMAT = "%s,%s,%s,%s,%s,%s,%s,%s,%s\n";
+    private int dataPoint = 0;
+    private static final String FORMAT = "%s,%s,%s,%s,%s,%s,%s,%s,%.4f\n";
 
     public CellCountFailureProbabilityPrinter(File tempDirectory, int dataPoints) throws IOException {
         super(tempDirectory);
         category = new int[dataPoints];
         yValues = new double[dataPoints];
-        writer.printf(FORMAT, "txcount", "hashFunctionCount", "keySize [B]", "valueSize [B]", "keyHashSize [B]",
-                "cellCount", "failureCount", "successCount", "failureProbability");
+        writer.printf("txcount,hashFunctionCount,keySize [B],valueSize [B]," +
+                "keyHashSize [B],cellCount,failureCount,successCount,failureProbability\n");
     }
 
     public void addResult(TestConfig config, ResultStats resultStats) {
+        category[dataPoint] = config.getCellCount();
+        yValues[dataPoint] = (double)resultStats.getFailures() / (double)(resultStats.getFailures() + resultStats.getSuccesses());
         writer.printf(FORMAT, config.getTxCount(), config.getHashFunctionCount(), config.getKeySize(),
                 config.getValueSize(), config.getKeyHashSize(), config.getCellCount(),
                 resultStats.getFailures(), resultStats.getSuccesses(),
-                (double)resultStats.getFailures() / (double)(resultStats.getFailures() + resultStats.getSuccesses()));
+                yValues[dataPoint]);
         writer.flush();
+        dataPoint++;
+    }
+
+    public void logResult(TestConfig config, ResultStats stats) {
+        logger.info("CellCount: {}, successes: {}, failures: {}", config.getCellCount(),
+                stats.getSuccesses(), stats.getFailures());
+    }
+
+    public void createImage(int[] category, double[] yValues) throws IOException {
+        DefaultCategoryDataset dataSet = new DefaultCategoryDataset();
+        for (int i = 0; i < category.length; i++) {
+            dataSet.addValue(yValues[i] == 0 ? 0.000000001 : yValues[i], "apa", Integer.valueOf(category[i]));
+        }
+        JFreeChart chart3 = ChartFactory.createLineChart("", "Number of cells", "Failure probability", dataSet, PlotOrientation.VERTICAL,
+                false, false, false);
+
+        LogarithmicAxis yAxis = new LogarithmicAxis("Failure probability");
+        CategoryPlot plot = chart3.getCategoryPlot();
+        plot.setRangeAxis(yAxis);
+
+        plot.getDomainAxis().setCategoryLabelPositions(CategoryLabelPositions.UP_90);
+        BufferedImage image = chart3.createBufferedImage(600,400);
+
+        OutputStream out = new FileOutputStream(getFile("_logarithmicline.png"));
+        try {
+            ImageIO.write(image, "png", out);
+        } catch (IOException e) {
+            logger.error("Failed to write image.", e);
+        }
+        out.close();
+    }
+
+    private void generateImage() throws IOException {
+        createImage(category, yValues);
+        DefaultCategoryDataset dataSet = new DefaultCategoryDataset();
+        for (int i = 0; i < category.length; i++) {
+            dataSet.addValue(yValues[i], "apa", Integer.valueOf(category[i]));
+        }
+        JFreeChart chart = ChartFactory.createBarChart("", "Number of cells", "Failure probability", dataSet, PlotOrientation.VERTICAL,
+                false, false, false);
+
+        BufferedImage image = chart.createBufferedImage(600,400);
+        OutputStream out = new FileOutputStream(getFile("_bar.png"));
+        try {
+            ImageIO.write(image, "png", out);
+        } catch (IOException e) {
+            logger.error("Failed to write image.", e);
+        }
+        out.close();
+
+
+        JFreeChart chart2 = ChartFactory.createLineChart("", "Number of cells", "Failure probability", dataSet, PlotOrientation.VERTICAL,
+                false, false, false);
+        image = chart2.createBufferedImage(600,400);
+        out = new FileOutputStream(getFile("_line.png"));
+        try {
+            ImageIO.write(image, "png", out);
+        } catch (IOException e) {
+            logger.error("Failed to write image.", e);
+        }
+        out.close();
+
+    }
+
+    @Override
+    public void finish() throws IOException {
+        super.finish();
+        generateImage();
     }
 
     @Override

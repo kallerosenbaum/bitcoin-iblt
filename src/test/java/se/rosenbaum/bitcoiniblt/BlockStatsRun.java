@@ -71,7 +71,7 @@ import static org.junit.Assert.*;
  * minus-transactions. Unfortunately, we can't find blocks containing arbitrary amounts of transactions, so
  * we'll have to fake them, but we can still use real world transactions.
  */
-public class BlockStatsTest extends ClientCoderTest {
+public class BlockStatsRun extends ClientCoderTest {
     private TransactionSorter sorter;
     private BlockCoder sut;
 
@@ -181,7 +181,7 @@ public class BlockStatsTest extends ClientCoderTest {
     private ResultStats testCellCountVSFailureProbability(TestConfig config) throws IOException {
         ResultStats stats = new ResultStats(config);
 
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < 10; i++) {
             BlockStatsResult result = testBlockStats(config);
             if (result.isSuccess()) {
                 stats.setSuccesses(stats.getSuccesses() + 1);

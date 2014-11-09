@@ -34,7 +34,7 @@ public class ByteArrayDataTransactionCoder implements TransactionCoder<ByteArray
         System.arraycopy(salt, 0, key, transactionId.length, salt.length);
         key = Sha256Hash.create(key).getBytes();
 
-        byte[] keyBytes = Arrays.copyOfRange(key, 0, keySize); // 64 first bits (the last to bytes will be overwritten by counter
+        byte[] keyBytes = Arrays.copyOfRange(key, 0, keySize); // 64 first bits (the last two bytes will be overwritten by counter
         char keyCounter = 0; // char is a 16 bit unsigned integer
 
         byte[] bytes = transaction.bitcoinSerialize();

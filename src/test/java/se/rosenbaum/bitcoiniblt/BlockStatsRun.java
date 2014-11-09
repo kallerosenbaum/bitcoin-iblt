@@ -270,10 +270,12 @@ public class BlockStatsRun extends ClientCoderTest {
         long startTime = System.currentTimeMillis();
         IBLT iblt = sut.encode(myBlock);
         result.setEncodingTime(System.currentTimeMillis() - startTime);
+        result.setTotalKeysCount(sut.getEncodedEntriesCount());
 
         startTime = System.currentTimeMillis();
         Block resultBlock = sut.decode(recreatedBlock, iblt, sets.getReceiversTransactions());
         result.setDecodingTime(System.currentTimeMillis() - startTime);
+        result.setResidualKeysCount(sut.getResidualEntriesCount());
 
         if (resultBlock == null) {
             result.setSuccess(false);

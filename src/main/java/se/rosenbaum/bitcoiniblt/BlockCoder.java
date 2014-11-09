@@ -15,6 +15,8 @@ public class BlockCoder<K extends Data, V extends Data> {
     private IBLT<K, V> iblt;
     private TransactionCoder transactionCoder;
     private TransactionSorter sorter;
+    private int encodedEntriesCount = 0;
+    private int residualEntriesCount = 0;
 
     public BlockCoder(IBLT<K, V> iblt, TransactionCoder transactionCoder, TransactionSorter sorter) {
         this.iblt = iblt;
@@ -26,6 +28,7 @@ public class BlockCoder<K extends Data, V extends Data> {
         List<Transaction> transactions = block.getTransactions();
         for (Transaction transaction : transactions) {
             Map<K, V> data = transactionCoder.encodeTransaction(transaction);
+            encodedEntriesCount += data.size();
             for (Map.Entry<K, V> entry : data.entrySet()) {
                 iblt.insert(entry.getKey(), entry.getValue());
             }
@@ -51,6 +54,7 @@ public class BlockCoder<K extends Data, V extends Data> {
         if (residualData == null) {
             return null;
         }
+        residualEntriesCount = residualData.getAbsentEntries().size() + residualData.getExtraEntries().size();
         Collection absentTransactions = transactionCoder.decodeTransactions(residualData.getAbsentEntries());
         Collection extraTransactions = transactionCoder.decodeTransactions(residualData.getExtraEntries());
         mutableList.removeAll(absentTransactions);
@@ -63,4 +67,11 @@ public class BlockCoder<K extends Data, V extends Data> {
         return header;
     }
 
+    public int getEncodedEntriesCount() {
+        return encodedEntriesCount;
+    }
+
+    public int getResidualEntriesCount() {
+        return residualEntriesCount;
+    }
 }

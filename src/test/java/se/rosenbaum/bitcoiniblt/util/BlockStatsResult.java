@@ -4,6 +4,8 @@ public class BlockStatsResult {
     private boolean success;
     private long encodingTime;
     private long decodingTime;
+    private int totalKeysCount;
+    private int residualKeysCount;
 
     public boolean isSuccess() {
         return success;
@@ -27,5 +29,21 @@ public class BlockStatsResult {
 
     public void setDecodingTime(long decodingTime) {
         this.decodingTime = decodingTime;
+    }
+
+    public int getTotalKeysCount() {
+        return totalKeysCount;
+    }
+
+    public void setTotalKeysCount(int totalKeysCount) {
+        this.totalKeysCount = totalKeysCount;
+    }
+
+    public int getResidualKeysCount() {
+        return residualKeysCount;
+    }
+
+    public void setResidualKeysCount(int residualKeysCount) {
+        this.residualKeysCount = residualKeysCount;
     }
 }

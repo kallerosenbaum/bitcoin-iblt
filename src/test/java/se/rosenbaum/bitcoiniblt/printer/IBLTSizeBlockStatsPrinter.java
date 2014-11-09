@@ -15,8 +15,8 @@ import java.io.OutputStream;
  * Date: 10/30/14 7:19 PM
  */
 public abstract class IBLTSizeBlockStatsPrinter extends BlockStatsPrinter {
-    public static final String OUTPUT_FORMAT = "%s,%s,%s,%s,%s,%s,%s,%s,%s\n";
-    public static final String LOGGER_FORMAT = "{},{},{},{},{},{},{},{},{}";
+    public static final String OUTPUT_FORMAT = "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n";
+    public static final String LOGGER_FORMAT = "{},{},{},{},{},{},{},{},{},{}";
     int[] category;
     int[] yValues;
     int currentDataPoint = 0;
@@ -31,20 +31,21 @@ public abstract class IBLTSizeBlockStatsPrinter extends BlockStatsPrinter {
 
     private void printHeader() {
         writer.printf(OUTPUT_FORMAT, "txcount", "hashFunctionCount", "keySize [B]", "valueSize [B]", "keyHashSize [B]",
-                "cellCount", "encodeTime [ms]", "decodeTime [ms]", "minIBLTSize [B]");
+                "cellCount", "entryCount", "encodeTime [ms]", "decodeTime [ms]", "minIBLTSize [B]");
     }
 
     public void logResult(TestConfig config, BlockStatsResult result) {
         logger.info(LOGGER_FORMAT, config.getTxCount(), config.getHashFunctionCount(), config.getKeySize(),
                 config.getValueSize(),
-                config.getKeyHashSize(), config.getCellCount(),
+                config.getKeyHashSize(), config.getCellCount(), result.getResidualKeysCount(),
                 result.getEncodingTime(), result.getDecodingTime(), result.isSuccess() ? "success" : "fail");
     }
 
     public void addResult(TestConfig config, BlockStatsResult result) {
         writer.printf(OUTPUT_FORMAT, config.getTxCount(), config.getHashFunctionCount(), config.getKeySize(),
                 config.getValueSize(), config.getKeyHashSize(),
-                config.getCellCount(), result.getEncodingTime(), result.getDecodingTime(), config.getIbltSize());
+                config.getCellCount(), result.getResidualKeysCount(), result.getEncodingTime(),
+                result.getDecodingTime(), config.getIbltSize());
         writer.flush();
         createDataPoint(config, result);
     }

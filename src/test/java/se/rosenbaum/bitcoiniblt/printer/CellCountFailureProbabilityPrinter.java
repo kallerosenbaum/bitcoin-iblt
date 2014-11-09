@@ -8,6 +8,10 @@ import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.data.xy.DefaultTableXYDataset;
+import org.jfree.data.xy.XYDataItem;
+import org.jfree.data.xy.XYDataset;
+import org.jfree.data.xy.XYSeries;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,31 +26,58 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CellCountFailureProbabilityPrinter extends BlockStatsPrinter {
     private static final Logger logger = LoggerFactory.getLogger(CellCountFailureProbabilityPrinter.class);
-    private final int[] category;
-    private final double[] yValues;
-    private int dataPoint = 0;
+    private List<DataPoint> dataPoints = new ArrayList<DataPoint>();
     private static final String FORMAT = "%s,%s,%s,%s,%s,%s,%s,%s,%.4f\n";
 
-    public CellCountFailureProbabilityPrinter(File tempDirectory, int dataPoints) throws IOException {
+
+
+    public static class DataPoint {
+        int category;
+        double yValue;
+
+        public DataPoint(int category, double yValue) {
+            this.category = category;
+            this.yValue = yValue;
+        }
+    }
+
+
+    @Test
+    public void testCreateImage() throws IOException {
+
+        List<DataPoint> dataPoints = new ArrayList<DataPoint>();
+
+        dataPoints.add(new DataPoint(100, 10000));
+        dataPoints.add(new DataPoint(101, 9999));
+        dataPoints.add(new DataPoint(200, 5000));
+        dataPoints.add(new DataPoint(600, 4000));
+
+
+
+        createImage(dataPoints);
+    }
+
+    public CellCountFailureProbabilityPrinter(File tempDirectory) throws IOException {
         super(tempDirectory);
-        category = new int[dataPoints];
-        yValues = new double[dataPoints];
         writer.printf("txcount,hashFunctionCount,keySize [B],valueSize [B]," +
                 "keyHashSize [B],cellCount,failureCount,successCount,failureProbability\n");
     }
 
     public void addResult(TestConfig config, ResultStats resultStats) {
-        category[dataPoint] = config.getCellCount();
-        yValues[dataPoint] = (double)resultStats.getFailures() / (double)(resultStats.getFailures() + resultStats.getSuccesses());
+
+        double yValue = (double)resultStats.getFailures() / (double)(resultStats.getFailures() + resultStats.getSuccesses());
+        DataPoint dataPoint = new DataPoint(config.getCellCount(), yValue);
+        dataPoints.add(dataPoint);
         writer.printf(FORMAT, config.getTxCount(), config.getHashFunctionCount(), config.getKeySize(),
                 config.getValueSize(), config.getKeyHashSize(), config.getCellCount(),
                 resultStats.getFailures(), resultStats.getSuccesses(),
-                yValues[dataPoint]);
+                yValue);
         writer.flush();
-        dataPoint++;
     }
 
     public void logResult(TestConfig config, ResultStats stats) {
@@ -54,19 +85,22 @@ public class CellCountFailureProbabilityPrinter extends BlockStatsPrinter {
                 stats.getSuccesses(), stats.getFailures());
     }
 
-    public void createImage(int[] category, double[] yValues) throws IOException {
-        DefaultCategoryDataset dataSet = new DefaultCategoryDataset();
-        for (int i = 0; i < category.length; i++) {
-            dataSet.addValue(yValues[i] == 0 ? 0.000000001 : yValues[i], "apa", Integer.valueOf(category[i]));
+    public void createImage(List<DataPoint> dataPoints) throws IOException {
+        DefaultTableXYDataset dataSet = new DefaultTableXYDataset();
+        XYSeries series = new XYSeries("APA", true, false);
+        for (DataPoint point : dataPoints) {
+            series.add(point.category, point.yValue == 0 ? 0.000000001 : point.yValue);
         }
-        JFreeChart chart3 = ChartFactory.createLineChart("", "Number of cells", "Failure probability", dataSet, PlotOrientation.VERTICAL,
+        dataSet.addSeries(series);
+        //dataSet.addValue(point.yValue == 0 ? 0.000000001 : point.yValue, "apa", Integer.valueOf(point.category));
+        JFreeChart chart3 = ChartFactory.createXYLineChart("", "Number of cells", "Failure probability", dataSet, PlotOrientation.VERTICAL,
                 false, false, false);
 
         LogarithmicAxis yAxis = new LogarithmicAxis("Failure probability");
-        CategoryPlot plot = chart3.getCategoryPlot();
+        XYPlot plot = chart3.getXYPlot();
         plot.setRangeAxis(yAxis);
 
-        plot.getDomainAxis().setCategoryLabelPositions(CategoryLabelPositions.UP_90);
+        plot.getDomainAxis().setVerticalTickLabels(true);
         BufferedImage image = chart3.createBufferedImage(600,400);
 
         OutputStream out = new FileOutputStream(getFile("_logarithmicline.png"));
@@ -79,10 +113,10 @@ public class CellCountFailureProbabilityPrinter extends BlockStatsPrinter {
     }
 
     private void generateImage() throws IOException {
-        createImage(category, yValues);
+        createImage(dataPoints);
         DefaultCategoryDataset dataSet = new DefaultCategoryDataset();
-        for (int i = 0; i < category.length; i++) {
-            dataSet.addValue(yValues[i], "apa", Integer.valueOf(category[i]));
+        for (DataPoint point : dataPoints) {
+            dataSet.addValue(point.yValue, "apa", Integer.valueOf(point.category));
         }
         JFreeChart chart = ChartFactory.createBarChart("", "Number of cells", "Failure probability", dataSet, PlotOrientation.VERTICAL,
                 false, false, false);

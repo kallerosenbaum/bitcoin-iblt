@@ -28,6 +28,18 @@ public class TestConfig {
         this.setRandomTxSelection(randomTxSelection);
     }
 
+    public TestConfig(TestConfig other) {
+        this.setTxCount(other.txCount);
+        this.setExtraTxCount(other.extraTxCount);
+        this.setAbsentTxCount(other.absentTxCount);
+        this.setHashFunctionCount(other.hashFunctionCount);
+        this.setKeySize(other.keySize);
+        this.setValueSize(other.valueSize);
+        this.setKeyHashSize(other.keyHashSize);
+        this.setCellCount(other.cellCount);
+        this.setRandomTxSelection(other.randomTxSelection);
+    }
+
     public int getIbltSize() {
         return getCellCount() * (getKeySize() + getValueSize() + getKeyHashSize() + 4/*counter*/);
     }

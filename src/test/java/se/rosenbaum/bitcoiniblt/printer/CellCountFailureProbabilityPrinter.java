@@ -29,60 +29,20 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CellCountFailureProbabilityPrinter extends BlockStatsPrinter {
+public class CellCountFailureProbabilityPrinter extends FailureProbabilityPrinter {
     private static final Logger logger = LoggerFactory.getLogger(CellCountFailureProbabilityPrinter.class);
     private List<DataPoint> dataPoints = new ArrayList<DataPoint>();
-    private static final String FORMAT = "%s,%s,%s,%s,%s,%s,%s,%s,%.4f\n";
-
-
-
-    public static class DataPoint {
-        int category;
-        double yValue;
-
-        public DataPoint(int category, double yValue) {
-            this.category = category;
-            this.yValue = yValue;
-        }
-    }
-
-
-    @Test
-    public void testCreateImage() throws IOException {
-
-        List<DataPoint> dataPoints = new ArrayList<DataPoint>();
-
-        dataPoints.add(new DataPoint(100, 10000));
-        dataPoints.add(new DataPoint(101, 9999));
-        dataPoints.add(new DataPoint(200, 5000));
-        dataPoints.add(new DataPoint(600, 4000));
-
-
-
-        createImage(dataPoints);
-    }
 
     public CellCountFailureProbabilityPrinter(File tempDirectory) throws IOException {
         super(tempDirectory);
-        writer.printf("txcount,hashFunctionCount,keySize [B],valueSize [B]," +
-                "keyHashSize [B],cellCount,failureCount,successCount,failureProbability\n");
+
     }
 
-    public void addResult(TestConfig config, ResultStats resultStats) {
-
+    @Override
+    protected void addDataPoint(TestConfig config, ResultStats resultStats) {
         double yValue = (double)resultStats.getFailures() / (double)(resultStats.getFailures() + resultStats.getSuccesses());
         DataPoint dataPoint = new DataPoint(config.getCellCount(), yValue);
         dataPoints.add(dataPoint);
-        writer.printf(FORMAT, config.getTxCount(), config.getHashFunctionCount(), config.getKeySize(),
-                config.getValueSize(), config.getKeyHashSize(), config.getCellCount(),
-                resultStats.getFailures(), resultStats.getSuccesses(),
-                yValue);
-        writer.flush();
-    }
-
-    public void logResult(TestConfig config, ResultStats stats) {
-        logger.info("CellCount: {}, successes: {}, failures: {}", config.getCellCount(),
-                stats.getSuccesses(), stats.getFailures());
     }
 
     public void createImage(List<DataPoint> dataPoints) throws IOException {
@@ -112,46 +72,15 @@ public class CellCountFailureProbabilityPrinter extends BlockStatsPrinter {
         out.close();
     }
 
-    private void generateImage() throws IOException {
-        createImage(dataPoints);
-        DefaultCategoryDataset dataSet = new DefaultCategoryDataset();
-        for (DataPoint point : dataPoints) {
-            dataSet.addValue(point.yValue, "apa", Integer.valueOf(point.category));
-        }
-        JFreeChart chart = ChartFactory.createBarChart("", "Number of cells", "Failure probability", dataSet, PlotOrientation.VERTICAL,
-                false, false, false);
-
-        BufferedImage image = chart.createBufferedImage(600,400);
-        OutputStream out = new FileOutputStream(getFile("_bar.png"));
-        try {
-            ImageIO.write(image, "png", out);
-        } catch (IOException e) {
-            logger.error("Failed to write image.", e);
-        }
-        out.close();
-
-
-        JFreeChart chart2 = ChartFactory.createLineChart("", "Number of cells", "Failure probability", dataSet, PlotOrientation.VERTICAL,
-                false, false, false);
-        image = chart2.createBufferedImage(600,400);
-        out = new FileOutputStream(getFile("_line.png"));
-        try {
-            ImageIO.write(image, "png", out);
-        } catch (IOException e) {
-            logger.error("Failed to write image.", e);
-        }
-        out.close();
-
+    @Override
+    protected String filePrefix() {
+        return "cellCount-failureProbability-Stats";
     }
+
 
     @Override
     public void finish() throws IOException {
         super.finish();
-        generateImage();
-    }
-
-    @Override
-    protected String filePrefix() {
-        return "cellCount-failureProbability-Stats";
+        createImage(dataPoints);
     }
 }

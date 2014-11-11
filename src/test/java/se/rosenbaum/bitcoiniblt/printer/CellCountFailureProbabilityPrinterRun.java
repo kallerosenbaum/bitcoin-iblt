@@ -6,14 +6,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import se.rosenbaum.bitcoiniblt.printer.CellCountFailureProbabilityPrinter.DataPoint;
+import se.rosenbaum.bitcoiniblt.printer.FailureProbabilityPrinter.DataPoint;
 
 public class CellCountFailureProbabilityPrinterRun {
 
     @Test
     public void testCreateImage() throws IOException {
 
-        List<DataPoint> dataPoints = new ArrayList<CellCountFailureProbabilityPrinter.DataPoint>();
+        List<DataPoint> dataPoints = new ArrayList<DataPoint>();
 
         dataPoints.add(new DataPoint(100, 10000));
         dataPoints.add(new DataPoint(101, 9999));

@@ -9,10 +9,7 @@ import org.junit.Before;
 import org.junit.Test;
 import se.rosenbaum.bitcoiniblt.bytearraydata.ByteArrayDataTransactionCoder;
 import se.rosenbaum.bitcoiniblt.bytearraydata.IBLTUtils;
-import se.rosenbaum.bitcoiniblt.printer.CellCountFailureProbabilityPrinter;
-import se.rosenbaum.bitcoiniblt.printer.HashCountCellCountPrinter;
-import se.rosenbaum.bitcoiniblt.printer.IBLTSizeBlockStatsPrinter;
-import se.rosenbaum.bitcoiniblt.printer.ValueSizeCellCountPrinter;
+import se.rosenbaum.bitcoiniblt.printer.*;
 import se.rosenbaum.bitcoiniblt.util.*;
 import se.rosenbaum.iblt.IBLT;
 
@@ -20,9 +17,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.*;
 import static org.junit.Assert.*;
 
 /**
@@ -119,6 +114,40 @@ public class BlockStatsRun extends ClientCoderTest {
                     printer.addResult(config, lastSuccessResult);
                     break;
                 }
+            }
+        }
+        printer.finish();
+    }
+
+    @Test
+    public void testFind1pctLine2() throws IOException {
+        TestConfig config = new TestConfig(0, 0, 0, 3, 8, 270, 4, 16, true);
+//        int[] diffs = new int[] {4, 16, 64, 256, 1024, 4096};
+//        int[][] initialIntervals = new int[][] {{30,81},{150, 252},{450,651},{1300,1800},{4000,5001},{8000,16500}};
+
+        int[][] tests = new int[][] {{32, 250, 550},
+                                     {64, 450, 1000},
+                                     {128, 700, 1400},
+                                     {256, 1300, 2100},
+                                     {512, 2000, 3500},
+                                     {1024, 4000, 5200}};
+        int intermediaryCount = 3;
+
+        OnePercentLineFailureProbabilityPrinter printer = new OnePercentLineFailureProbabilityPrinter(tempDirectory);
+        for (int i = 0; i < tests.length; i++) {
+            int diffs = tests[i][0];
+            int halfDiffs = diffs / 2;
+            config.setTxCount(halfDiffs);
+            config.setExtraTxCount(halfDiffs);
+            config.setAbsentTxCount(halfDiffs);
+
+            int min = tests[i][1];
+            int max = tests[i][2];
+
+            for (int cellCount = min; cellCount <= max; cellCount += (max - min)/(intermediaryCount + 1)) {
+                config.setCellCount(cellCount - cellCount % config.getHashFunctionCount());
+                ResultStats result = testCellCountVSFailureProbability(printer, config, 10000);
+                printer.addResult(config, result);
             }
         }
         printer.finish();
@@ -236,15 +265,15 @@ public class BlockStatsRun extends ClientCoderTest {
         printer.finish();
     }
 
-    private ResultStats testCellCountVSFailureProbability(CellCountFailureProbabilityPrinter printer, TestConfig config, int sampleCount) throws IOException {
+    private ResultStats testCellCountVSFailureProbability(FailureProbabilityPrinter printer, TestConfig config, int sampleCount) throws IOException {
         ResultStats stats = new ResultStats();
 
         for (int i = 0; i < sampleCount; i++) {
-            if (i % 100 == 0 && i > 0) {
+            if (i % 99 == 0 && i > 0) {
                 printer.logResult(config, stats);
             }
             BlockStatsResult result = testBlockStats(config);
-            stats.addSample(result.isSuccess());
+            stats.addSample(result);
         }
         return stats;
     }

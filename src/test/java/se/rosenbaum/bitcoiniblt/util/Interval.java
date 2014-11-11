@@ -6,7 +6,7 @@ package se.rosenbaum.bitcoiniblt.util;
 */
 public class Interval {
     private int low;
-    private int high;
+    private int high = Integer.MAX_VALUE;
 
     public Interval(int low, int high) {
         this.setLow(low);
@@ -16,6 +16,7 @@ public class Interval {
     public int nextValue(TestConfig config) {
         int next = getHigh() - (getHigh() - getLow())/2;
         // Must be a multiple of hashFunctionCount;
+
         return next - next % config.getHashFunctionCount();
     }
     public boolean isInsideInterval(int value) {
@@ -27,7 +28,7 @@ public class Interval {
     }
 
     public void setLow(int low) {
-        this.low = low;
+        this.low = Math.max(this.low, low);
     }
 
     public int getHigh() {
@@ -35,6 +36,6 @@ public class Interval {
     }
 
     public void setHigh(int high) {
-        this.high = high;
+        this.high = Math.min(this.high, high);
     }
 }

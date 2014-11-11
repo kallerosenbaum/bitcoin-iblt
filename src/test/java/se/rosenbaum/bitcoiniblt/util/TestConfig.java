@@ -40,6 +40,10 @@ public class TestConfig {
         this.setRandomTxSelection(other.randomTxSelection);
     }
 
+    public TestConfig() {
+
+    }
+
     public int getIbltSize() {
         return getCellCount() * (getKeySize() + getValueSize() + getKeyHashSize() + 4/*counter*/);
     }

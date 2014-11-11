@@ -29,6 +29,24 @@ public class TransactionStatsTest extends ClientCoderTest {
         printPercentiles(processor.transactionSizes);
     }
 
+    @Test
+    public void testCreateSortKey() throws IOException {
+        final CanonicalOrderTransactionSorter sorter = new CanonicalOrderTransactionSorter();
+        processTransactions(MAINNET_BLOCK, Integer.MAX_VALUE,
+            new TransactionProcessor() {
+                int txCount = 0;
+                @Override
+                public void process(Transaction transaction) throws StopProcessingException {
+                    sorter.sortKey(transaction);
+                    txCount++;
+                    if (txCount % 1000 == 0) {
+                        System.out.println("txCount=" + txCount);
+                    }
+                }
+            }
+        );
+    }
+
     private void printPercentiles(int[] data) throws IOException {
         Arrays.sort(data);
         File file = new File(tempDirectory, FILE_PREFIX + "_percentiles.csv");

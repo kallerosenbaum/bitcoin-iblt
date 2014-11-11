@@ -35,7 +35,7 @@ public class CanonicalOrderTransactionSorter implements TransactionSorter, Compa
         return comparison;
     }
 
-    private SortKey sortKey(Transaction transaction) {
+    SortKey sortKey(Transaction transaction) {
         SortKey sortKey = new SortKey();
         List<TransactionInput> inputs = transaction.getInputs();
         for (int i = 0; i < inputs.size(); i++) {
@@ -48,6 +48,9 @@ public class CanonicalOrderTransactionSorter implements TransactionSorter, Compa
                 sortKey.hash = hash;
                 sortKey.index = outpoint.getIndex();
             }
+        }
+        if (sortKey.hash == null) {
+            throw new RuntimeException("No inputs found for transaction " + transaction.getHash() + " Cant create sort key");
         }
         return sortKey;
     }

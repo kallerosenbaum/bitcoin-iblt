@@ -47,7 +47,10 @@ public abstract class FailureProbabilityPrinter extends BlockStatsPrinter {
         BufferedReader in = new BufferedReader(fileReader);
         String line = in.readLine();
         int version = -1;
-        if (line != null && line.startsWith("version ")) {
+        if (line == null) {
+            return;
+        }
+        if (line.startsWith("version ")) {
             version = Integer.parseInt(line.substring("version ".length()).trim());
         }
         if (version < 1 || version > FILE_FORMAT_VERSION) {

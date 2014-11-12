@@ -5,7 +5,7 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 
-public class OnePercentLineFailureProbabilityPrinterTest {
+public class OnePercentLineFailureProbabilityPrinterManualTest {
 
     @Test
     public void updateOldFileVersions() throws IOException {

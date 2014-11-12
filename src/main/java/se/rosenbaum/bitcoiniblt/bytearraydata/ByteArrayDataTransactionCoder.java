@@ -29,21 +29,14 @@ public class ByteArrayDataTransactionCoder implements TransactionCoder<ByteArray
 
     public Map<ByteArrayData, ByteArrayData> encodeTransaction(Transaction transaction) {
         Map<ByteArrayData, ByteArrayData> map = new HashMap<ByteArrayData, ByteArrayData>();
-        byte[] transactionId = transaction.getHash().getBytes();
-        byte[] key = Arrays.copyOf(transactionId, transactionId.length + salt.length);
-        System.arraycopy(salt, 0, key, transactionId.length, salt.length);
-        key = Sha256Hash.create(key).getBytes();
 
-        byte[] keyBytes = Arrays.copyOfRange(key, 0, keySize); // 64 first bits (the last two bytes will be overwritten by counter
+        KeyByteArrayData key = new KeyByteArrayData(transaction, keySize, salt);
         char keyCounter = 0; // char is a 16 bit unsigned integer
 
         byte[] bytes = transaction.bitcoinSerialize();
         for (int i = 0; i < bytes.length; i += valueSize) {
-            byte[] keyCounterBytes = ByteBuffer.allocate(2).putChar(keyCounter++).array();
-            keyBytes[6] = keyCounterBytes[0];
-            keyBytes[7] = keyCounterBytes[1];
-
-            ByteArrayData keyData = new ByteArrayData(Arrays.copyOfRange(keyBytes, 0, keySize));
+            key.setIndex(keyCounter++);
+            ByteArrayData keyData = key.copy();
             ByteArrayData valueData = new ByteArrayData(Arrays.copyOfRange(bytes, i, i+valueSize));
             map.put(keyData, valueData);
         }
@@ -54,20 +47,20 @@ public class ByteArrayDataTransactionCoder implements TransactionCoder<ByteArray
         Map<ByteArrayData, byte[]> transactionGroups = new HashMap<ByteArrayData, byte[]>();
         int i = 0;
         for (Map.Entry<ByteArrayData, ByteArrayData> entry : entries.entrySet()) {
-            byte[] key = entry.getKey().getValue();
-            char keyCounter = ByteBuffer.wrap(key, keySize - 2, 2).getChar();
+            KeyByteArrayData key = new KeyByteArrayData(entry.getKey());
+            char keyCounter = key.getIndexPart();
 
-            ByteArrayData keyKey = new ByteArrayData(Arrays.copyOf(key, keySize - 2));
+            ByteArrayData hashPart = key.getHashPart();
             byte[] value = entry.getValue().getValue();
 
-            byte[] txBytes = transactionGroups.get(keyKey);
+            byte[] txBytes = transactionGroups.get(hashPart);
             if (txBytes == null) {
                 txBytes = new byte[(keyCounter+1) * valueSize];
-                transactionGroups.put(keyKey, txBytes);
+                transactionGroups.put(hashPart, txBytes);
             } else if (txBytes.length < (keyCounter+1) * valueSize) {
                 byte[] newTxBytes = new byte[(keyCounter+1) * valueSize];
                 System.arraycopy(txBytes, 0, newTxBytes, 0, txBytes.length);
-                transactionGroups.put(keyKey, newTxBytes);
+                transactionGroups.put(hashPart, newTxBytes);
                 txBytes = newTxBytes;
             }
 

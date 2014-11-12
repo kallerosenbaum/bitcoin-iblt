@@ -6,10 +6,7 @@ import se.rosenbaum.iblt.IBLT;
 import se.rosenbaum.iblt.data.Data;
 import se.rosenbaum.iblt.util.ResidualData;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class BlockCoder<K extends Data, V extends Data> {
     private IBLT<K, V> iblt;
@@ -43,11 +40,15 @@ public class BlockCoder<K extends Data, V extends Data> {
         // why that's necessary. I just remove the transactions
         // from IBLT_new one by one instead. Removing a transaction
         // from IBLT_new is the same cost as adding it to IBLT_us.
+      //  Map<K, Map<K, V>> keyPrefixToEncodedTransaction = new HashMap<K, Map<K, V>>();
         for (Transaction myTransaction : myTransactions) {
             Map<K, V> map = transactionCoder.encodeTransaction(myTransaction);
+            K key;
             for (Map.Entry<K, V> entry : map.entrySet()) {
                 iblt.delete(entry.getKey(), entry.getValue());
+        ///        key.
             }
+        //    keyPrefixToEncodedTransaction.put(, map);
             mutableList.add(myTransaction);
         }
         ResidualData<K, V> residualData = iblt.listEntries();

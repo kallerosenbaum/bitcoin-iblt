@@ -73,6 +73,7 @@
                     <workingDirectory>${project.basedir}</workingDirectory>
                     <excludes>
                         <exclude>**/*StatsTest.java</exclude>
+                        <exclude>**/*ManualTest.java</exclude>
                     </excludes>
                     <systemPropertyVariables>
                         <iblt.output.dir>${project.basedir}</iblt.output.dir>

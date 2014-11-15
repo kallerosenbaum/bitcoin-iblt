@@ -8,29 +8,20 @@ import se.rosenbaum.iblt.util.ResidualData;
 
 import java.util.*;
 
+
 public class BlockCoder<K extends Data, V extends Data> {
-    private IBLT<K, V> iblt;
-    private TransactionCoder transactionCoder;
     private TransactionSorter sorter;
-    private int encodedEntriesCount = 0;
-    private int residualEntriesCount = 0;
+    IBLTTransactionMap<K, V> transactionMap;
 
     public BlockCoder(IBLT<K, V> iblt, TransactionCoder transactionCoder, TransactionSorter sorter) {
-        this.iblt = iblt;
-        this.transactionCoder = transactionCoder;
+        transactionMap = new IBLTTransactionMap<K, V>(iblt, transactionCoder);
         this.sorter = sorter;
     }
 
     public IBLT<K, V> encode(Block block) {
         List<Transaction> transactions = block.getTransactions();
-        for (Transaction transaction : transactions) {
-            Map<K, V> data = transactionCoder.encodeTransaction(transaction);
-            encodedEntriesCount += data.size();
-            for (Map.Entry<K, V> entry : data.entrySet()) {
-                iblt.insert(entry.getKey(), entry.getValue());
-            }
-        }
-        return iblt;
+        transactionMap.putTransactions(transactions);
+        return transactionMap.getIBLT();
     }
 
     public Block decode(Block header, IBLT<K, V> iblt, List<Transaction> myTransactions) {
@@ -40,26 +31,15 @@ public class BlockCoder<K extends Data, V extends Data> {
         // why that's necessary. I just remove the transactions
         // from IBLT_new one by one instead. Removing a transaction
         // from IBLT_new is the same cost as adding it to IBLT_us.
-      //  Map<K, Map<K, V>> keyPrefixToEncodedTransaction = new HashMap<K, Map<K, V>>();
-        for (Transaction myTransaction : myTransactions) {
-            Map<K, V> map = transactionCoder.encodeTransaction(myTransaction);
-            K key;
-            for (Map.Entry<K, V> entry : map.entrySet()) {
-                iblt.delete(entry.getKey(), entry.getValue());
-        ///        key.
-            }
-        //    keyPrefixToEncodedTransaction.put(, map);
-            mutableList.add(myTransaction);
-        }
-        ResidualData<K, V> residualData = iblt.listEntries();
-        if (residualData == null) {
+        transactionMap.deleteTransactions(myTransactions);
+        mutableList.addAll(myTransactions);
+
+        ResidualTransactions residualTransactions = transactionMap.decodeRemaining();
+        if (residualTransactions == null) {
             return null;
         }
-        residualEntriesCount = residualData.getAbsentEntries().size() + residualData.getExtraEntries().size();
-        Collection absentTransactions = transactionCoder.decodeTransactions(residualData.getAbsentEntries());
-        Collection extraTransactions = transactionCoder.decodeTransactions(residualData.getExtraEntries());
-        mutableList.removeAll(absentTransactions);
-        mutableList.addAll(extraTransactions);
+        mutableList.removeAll(residualTransactions.getAbsentTransactions());
+        mutableList.addAll(residualTransactions.getExtraTransactions());
         List<Transaction> sortedTransactions = sorter.sort(mutableList);
         int i = 0;
         for (Transaction transaction : sortedTransactions) {
@@ -69,10 +49,10 @@ public class BlockCoder<K extends Data, V extends Data> {
     }
 
     public int getEncodedEntriesCount() {
-        return encodedEntriesCount;
+        return transactionMap.getEncodedEntriesCount();
     }
 
     public int getResidualEntriesCount() {
-        return residualEntriesCount;
+        return transactionMap.getResidualEntriesCount();
     }
 }

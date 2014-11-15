@@ -28,7 +28,7 @@ public class Interval {
     }
 
     public void setLow(int low) {
-        this.low = Math.max(this.low, low);
+        this.low = low;
     }
 
     public int getHigh() {
@@ -36,6 +36,6 @@ public class Interval {
     }
 
     public void setHigh(int high) {
-        this.high = Math.min(this.high, high);
+        this.high = high;
     }
 }

@@ -30,7 +30,7 @@ public class ByteArrayDataTransactionCoder implements TransactionCoder<ByteArray
     public Map<ByteArrayData, ByteArrayData> encodeTransaction(Transaction transaction) {
         Map<ByteArrayData, ByteArrayData> map = new HashMap<ByteArrayData, ByteArrayData>();
 
-        KeyByteArrayData key = new KeyByteArrayData(transaction, keySize, salt);
+        KeyByteArrayData key = getKeyData(transaction);
         char keyCounter = 0; // char is a 16 bit unsigned integer
 
         byte[] bytes = transaction.bitcoinSerialize();
@@ -41,6 +41,10 @@ public class ByteArrayDataTransactionCoder implements TransactionCoder<ByteArray
             map.put(keyData, valueData);
         }
         return map;
+    }
+
+    public KeyByteArrayData getKeyData(Transaction transaction) {
+        return new KeyByteArrayData(transaction, keySize, salt);
     }
 
     public List<Transaction> decodeTransactions(Map<ByteArrayData, ByteArrayData> entries) {

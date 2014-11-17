@@ -2,10 +2,7 @@ package se.rosenbaum.bitcoiniblt.longdata;
 
 import se.rosenbaum.iblt.Cell;
 import se.rosenbaum.iblt.IBLT;
-import se.rosenbaum.iblt.data.IntegerData;
 import se.rosenbaum.iblt.data.LongData;
-import se.rosenbaum.iblt.hash.HashFunction;
-import se.rosenbaum.iblt.hash.IntegerDataHashFunction;
 import se.rosenbaum.iblt.hash.LongDataHashFunction;
 import se.rosenbaum.iblt.hash.LongDataSubtablesHashFunctions;
 
@@ -22,10 +19,11 @@ public class IBLTUtils {
     public static LongData data(long value) {
         return new LongData(value);
     }
-
+    
     public static IBLT<LongData, LongData> createIblt(int cellCount, int hashFunctionCount) {
-        return new IBLT<LongData, LongData>(createCells(cellCount),
-                new LongDataSubtablesHashFunctions(cellCount, hashFunctionCount));
+        Cell<LongData, LongData>[] cells = createCells(cellCount);
+        LongDataSubtablesHashFunctions hashFunctions = new LongDataSubtablesHashFunctions(cellCount, hashFunctionCount);
+        return new IBLT<LongData, LongData>(cells, hashFunctions);
     }
 
 }

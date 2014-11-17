@@ -2,16 +2,10 @@ package se.rosenbaum.bitcoiniblt.printer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.rosenbaum.bitcoiniblt.util.BlockStatsResult;
-import se.rosenbaum.bitcoiniblt.util.TestConfig;
-import se.rosenbaum.bitcoiniblt.chart.BarChart;
 
-import javax.imageio.ImageIO;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;

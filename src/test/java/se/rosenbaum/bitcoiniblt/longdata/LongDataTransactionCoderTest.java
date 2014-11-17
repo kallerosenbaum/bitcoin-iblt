@@ -4,13 +4,7 @@ import org.bitcoinj.core.Transaction;
 import org.bitcoinj.store.BlockStoreException;
 import org.junit.Test;
 import se.rosenbaum.bitcoiniblt.ClientCoderTest;
-import se.rosenbaum.bitcoiniblt.longdata.LongDataTransactionCoder;
-import se.rosenbaum.iblt.Cell;
-import se.rosenbaum.iblt.IBLT;
-import se.rosenbaum.iblt.data.IntegerData;
 import se.rosenbaum.iblt.data.LongData;
-import se.rosenbaum.iblt.hash.LongDataHashFunction;
-import se.rosenbaum.iblt.hash.LongDataSubtablesHashFunctions;
 
 import java.util.ArrayList;
 import java.util.HashMap;

@@ -1,12 +1,12 @@
 package se.rosenbaum.bitcoiniblt.printer;
 
 import org.junit.Test;
+import se.rosenbaum.bitcoiniblt.printer.FailureProbabilityPrinter.DataPoint;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import se.rosenbaum.bitcoiniblt.printer.FailureProbabilityPrinter.DataPoint;
 
 public class CellCountFailureProbabilityPrinterRun {
 

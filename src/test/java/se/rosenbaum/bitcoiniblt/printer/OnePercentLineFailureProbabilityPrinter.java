@@ -1,10 +1,8 @@
 package se.rosenbaum.bitcoiniblt.printer;
 
-import junit.framework.TestResult;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.axis.LogarithmicAxis;
-import org.jfree.chart.axis.NumberTickUnit;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
@@ -17,8 +15,14 @@ import se.rosenbaum.bitcoiniblt.util.TestConfig;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.*;
-import java.util.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class OnePercentLineFailureProbabilityPrinter extends FailureProbabilityPrinter {
     private static final Logger logger = LoggerFactory.getLogger(OnePercentLineFailureProbabilityPrinter.class);

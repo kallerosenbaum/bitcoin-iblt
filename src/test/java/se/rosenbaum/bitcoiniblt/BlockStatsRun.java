@@ -1,6 +1,8 @@
 package se.rosenbaum.bitcoiniblt;
 
-import org.bitcoinj.core.*;
+import org.bitcoinj.core.Block;
+import org.bitcoinj.core.NetworkParameters;
+import org.bitcoinj.core.Transaction;
 import org.bitcoinj.params.MainNetParams;
 import org.easymock.Capture;
 import org.easymock.CaptureType;
@@ -9,16 +11,30 @@ import org.junit.Before;
 import org.junit.Test;
 import se.rosenbaum.bitcoiniblt.bytearraydata.ByteArrayDataTransactionCoder;
 import se.rosenbaum.bitcoiniblt.bytearraydata.IBLTUtils;
-import se.rosenbaum.bitcoiniblt.printer.*;
-import se.rosenbaum.bitcoiniblt.util.*;
+import se.rosenbaum.bitcoiniblt.printer.CellCountFailureProbabilityPrinter;
+import se.rosenbaum.bitcoiniblt.printer.FailureProbabilityPrinter;
+import se.rosenbaum.bitcoiniblt.printer.HashCountCellCountPrinter;
+import se.rosenbaum.bitcoiniblt.printer.IBLTSizeBlockStatsPrinter;
+import se.rosenbaum.bitcoiniblt.printer.OnePercentLineFailureProbabilityPrinter;
+import se.rosenbaum.bitcoiniblt.printer.ValueSizeCellCountPrinter;
+import se.rosenbaum.bitcoiniblt.util.BlockStatsResult;
+import se.rosenbaum.bitcoiniblt.util.Interval;
+import se.rosenbaum.bitcoiniblt.util.ResultStats;
+import se.rosenbaum.bitcoiniblt.util.TestBatch;
+import se.rosenbaum.bitcoiniblt.util.TestBatchProducer;
+import se.rosenbaum.bitcoiniblt.util.TestConfig;
+import se.rosenbaum.bitcoiniblt.util.TransactionSets;
 import se.rosenbaum.iblt.IBLT;
 
-import java.io.*;
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.List;
 
-import static org.easymock.EasyMock.*;
-import static org.junit.Assert.*;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /**
  * What do I want to accomplish?
@@ -75,6 +91,12 @@ public class BlockStatsRun extends ClientCoderTest {
                 config.getValueSize());
         IBLT iblt = new IBLTUtils().createIblt(config.getCellCount(), config.getHashFunctionCount(), config.getKeySize(),
                 config.getValueSize(), config.getKeyHashSize());
+        sut = new BlockCoder(iblt, transactionCoder, sorter);
+    }
+
+    private void createBlockCoder(TestConfig config, IBLT iblt) {
+        TransactionCoder transactionCoder = new ByteArrayDataTransactionCoder(getParams(), salt, config.getKeySize(),
+                config.getValueSize());
         sut = new BlockCoder(iblt, transactionCoder, sorter);
     }
 
@@ -301,8 +323,10 @@ public class BlockStatsRun extends ClientCoderTest {
         result.setEncodingTime(System.currentTimeMillis() - startTime);
         result.setTotalKeysCount(sut.getEncodedEntriesCount());
 
+        createBlockCoder(config, iblt);
+
         startTime = System.currentTimeMillis();
-        Block resultBlock = sut.decode(recreatedBlock, iblt, sets.getReceiversTransactions());
+        Block resultBlock = sut.decode(recreatedBlock, sets.getReceiversTransactions());
         result.setDecodingTime(System.currentTimeMillis() - startTime);
         result.setResidualKeysCount(sut.getResidualEntriesCount());
 

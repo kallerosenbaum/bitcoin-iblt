@@ -40,13 +40,24 @@ public class IBLTTransactionMap<K extends Data, V extends Data> {
     }
 
     public ResidualTransactions decodeRemaining() {
-        ResidualData<K, V> residualData = iblt.listEntries();
+        AbsentTxAddingListEntriesListener listener = null;
+        Map encodedTransactions = transactionCoder.getEncodedTransactions();
+        if (encodedTransactions != null) {
+            listener = new AbsentTxAddingListEntriesListener(iblt, encodedTransactions);
+        }
+        ResidualData<K, V> residualData = iblt.listEntries(listener);
         if (residualData == null) {
             return null;
         }
         residualEntriesCount = residualData.getAbsentEntries().size() + residualData.getExtraEntries().size();
         Collection<Transaction> extraTransactions = transactionCoder.decodeTransactions(residualData.getExtraEntries());
-        Collection<Transaction> absentTransactions = transactionCoder.decodeTransactions(residualData.getAbsentEntries());
+
+        Collection<Transaction> absentTransactions;
+        if (listener == null) {
+            absentTransactions = transactionCoder.decodeTransactions(residualData.getAbsentEntries());
+        } else {
+            absentTransactions = transactionCoder.decodeTransactions(listener.getAbsentEntries());
+        }
         ResidualTransactions result = new ResidualTransactions(extraTransactions, absentTransactions);
         return result;
     }

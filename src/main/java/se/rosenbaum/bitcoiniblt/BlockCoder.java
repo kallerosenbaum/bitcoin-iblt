@@ -4,10 +4,9 @@ import org.bitcoinj.core.Block;
 import org.bitcoinj.core.Transaction;
 import se.rosenbaum.iblt.IBLT;
 import se.rosenbaum.iblt.data.Data;
-import se.rosenbaum.iblt.util.ResidualData;
 
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.List;
 
 public class BlockCoder<K extends Data, V extends Data> {
     private TransactionSorter sorter;
@@ -24,7 +23,7 @@ public class BlockCoder<K extends Data, V extends Data> {
         return transactionMap.getIBLT();
     }
 
-    public Block decode(Block header, IBLT<K, V> iblt, List<Transaction> myTransactions) {
+    public Block decode(Block header, List<Transaction> myTransactions) {
         List<Transaction> mutableList = new ArrayList<Transaction>();
         // Gavin suggests that we build our own IBLT and then
         // do the IBLT_new - IBLT_us operation. I don't see

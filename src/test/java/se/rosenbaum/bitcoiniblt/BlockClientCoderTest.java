@@ -4,8 +4,8 @@ import org.bitcoinj.core.Block;
 import org.bitcoinj.core.Transaction;
 import org.junit.Before;
 import org.junit.Test;
-import se.rosenbaum.bitcoiniblt.bytearraydata.ByteArrayDataTransactionCoder;
-import se.rosenbaum.bitcoiniblt.bytearraydata.IBLTUtils;
+import se.rosenbaum.bitcoiniblt.longdata.IBLTUtils;
+import se.rosenbaum.bitcoiniblt.longdata.LongDataTransactionCoder;
 import se.rosenbaum.bitcoiniblt.util.TransactionProcessor;
 import se.rosenbaum.iblt.IBLT;
 import se.rosenbaum.iblt.data.LongData;
@@ -16,20 +16,20 @@ import java.util.List;
 import static junit.framework.Assert.assertNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class BlockClientCoderTest extends ClientCoderTest {
 
-    private TransactionCoder transactionCoder;
-    private SameAsBlockTransactionSorter sorter;
     private BlockCoder sut;
 
     @Before
     public void setup() {
-        transactionCoder = new ByteArrayDataTransactionCoder(getParams(), salt, 8, 32);
-        sorter = new SameAsBlockTransactionSorter(getBlock());
-        IBLT iblt = new IBLTUtils().createIblt(1600, 4, 8, 32, 4);
-        sut = new BlockCoder(iblt, transactionCoder, sorter);
+        sut = createBlockCoder(new IBLTUtils().createIblt(1600, 4));
+    }
+
+    private BlockCoder createBlockCoder(IBLT iblt) {
+        TransactionCoder transactionCoder = new LongDataTransactionCoder(getParams(), salt);
+        SameAsBlockTransactionSorter sorter = new SameAsBlockTransactionSorter(getBlock());
+        return new BlockCoder(iblt, transactionCoder, sorter);
     }
 
     @Test
@@ -74,7 +74,9 @@ public class BlockClientCoderTest extends ClientCoderTest {
 
         List<Transaction> myTransactions = getMyTransactions(blockTransactions, extraCount, absentCount);
 
-        Block result = sut.decode(block.cloneAsHeader(), iblt, myTransactions);
+        sut = createBlockCoder(iblt);
+
+        Block result = sut.decode(block.cloneAsHeader(), myTransactions);
         assertNotNull(result);
         assertEquals(block, result);
     }

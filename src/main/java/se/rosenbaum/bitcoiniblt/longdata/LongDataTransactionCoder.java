@@ -7,7 +7,11 @@ import se.rosenbaum.bitcoiniblt.TransactionCoder;
 import se.rosenbaum.iblt.data.LongData;
 
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class LongDataTransactionCoder implements TransactionCoder<LongData, LongData> {
     NetworkParameters params;
@@ -22,6 +26,7 @@ public class LongDataTransactionCoder implements TransactionCoder<LongData, Long
         this.salt = salt;
     }
 
+    @Override
     public Map<LongData, LongData> encodeTransaction(Transaction transaction) {
         Map<LongData, LongData> map = new HashMap<LongData, LongData>();
         byte[] transactionId = transaction.getHash().getBytes();
@@ -62,7 +67,7 @@ public class LongDataTransactionCoder implements TransactionCoder<LongData, Long
         return new Transaction(params, txBytes);
     }
 
-
+    @Override
     public List<Transaction> decodeTransactions(Map<LongData, LongData> entries) {
         Map<Long, byte[]> transactionGroups = new HashMap<Long, byte[]>();
         for (Map.Entry<LongData, LongData> entry : entries.entrySet()) {
@@ -95,5 +100,11 @@ public class LongDataTransactionCoder implements TransactionCoder<LongData, Long
             result.add(new Transaction(params, txBytes));
         }
         return result;
+    }
+
+    @Override
+    public Map<LongData, Map<LongData, LongData>> getEncodedTransactions() {
+        // Unsupported
+        return null;
     }
 }

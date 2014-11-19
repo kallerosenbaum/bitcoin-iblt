@@ -34,6 +34,22 @@ public class TransactionStatsTest extends ClientCoderTest {
     }
 
     @Test
+    public void testAverageTransactionSize() throws IOException {
+        final int[] totalSize = {0};
+        int txCount = 10000;
+        processTransactions("000000000000000015b798837e7bcc72362f6977faaf96c09347c63567f4f656", txCount,
+                new TransactionProcessor() {
+                    @Override
+                    public void process(Transaction transaction) throws StopProcessingException {
+                        totalSize[0] += transaction.bitcoinSerialize().length;
+                    }
+                }
+        );
+        System.out.println("Average transaction size: " + totalSize[0] / txCount);
+    }
+
+
+    @Test
     public void testCreateSortKey() throws IOException {
         final CanonicalOrderTransactionSorter sorter = new CanonicalOrderTransactionSorter();
         processTransactions(MAINNET_BLOCK, Integer.MAX_VALUE,
@@ -62,6 +78,7 @@ public class TransactionStatsTest extends ClientCoderTest {
         }
         writer.close();
     }
+
 
     private static class SizePrintingProcessor implements TransactionProcessor {
         private Writer writer;

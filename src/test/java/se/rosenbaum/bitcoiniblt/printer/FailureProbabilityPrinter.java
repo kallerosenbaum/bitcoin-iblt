@@ -13,21 +13,21 @@ import java.util.StringTokenizer;
 
 public abstract class FailureProbabilityPrinter extends BlockStatsPrinter {
     private static final Logger logger = LoggerFactory.getLogger(FailureProbabilityPrinter.class);
-    private static final String FORMAT = "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%.4f\n";
+    private static final String FORMAT = "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%.4f\n";
     private static final int FILE_FORMAT_VERSION = 2;
 
     public FailureProbabilityPrinter(File tempDirectory) throws IOException {
         super(tempDirectory);
         writer.printf("version " + FILE_FORMAT_VERSION + "\n");
         writer.printf("blockTxCount,extraCount, absentCount, hashFunctionCount,keySize [B],valueSize [B]," +
-                "keyHashSize [B],cellCount,total keyCount,total encTime,total decTime,failureCount,successCount,failureProbability\n");
+                "keyHashSize [B],cellCount, IBLT size [B], total keyCount,total encTime,total decTime,failureCount,successCount,failureProbability\n");
     }
 
     public void addResult(TestConfig config, ResultStats resultStats) {
         addDataPoint(config, resultStats);
         double failureProbability = (double)resultStats.getFailures() / (double)(resultStats.getFailures() + resultStats.getSuccesses());
         writer.printf(FORMAT, config.getTxCount(), config.getExtraTxCount(), config.getAbsentTxCount(), config.getHashFunctionCount(), config.getKeySize(),
-                config.getValueSize(), config.getKeyHashSize(), config.getCellCount(), resultStats.getTotalResidualKeyCount(), resultStats.getTotalEncodingTime(), resultStats.getTotalDecodingTime(),
+                config.getValueSize(), config.getKeyHashSize(), config.getCellCount(), config.getIbltSize(), resultStats.getTotalResidualKeyCount(), resultStats.getTotalEncodingTime(), resultStats.getTotalDecodingTime(),
                 resultStats.getFailures(), resultStats.getSuccesses(),
                 failureProbability);
         writer.flush();

@@ -108,6 +108,10 @@ public class TestConfig {
         return cellCount;
     }
 
+    public void setCellCountMultiple(int cellCount) {
+        this.cellCount = cellCount - cellCount % hashFunctionCount;
+    }
+
     public void setCellCount(int cellCount) {
         this.cellCount = cellCount;
     }

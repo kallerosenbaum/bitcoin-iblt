@@ -1,16 +1,7 @@
 package se.rosenbaum.bitcoiniblt;
 
-import org.bitcoinj.core.Block;
-import org.bitcoinj.core.NetworkParameters;
-import org.bitcoinj.core.Transaction;
-import org.bitcoinj.params.MainNetParams;
-import org.easymock.Capture;
-import org.easymock.CaptureType;
-import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.Test;
-import se.rosenbaum.bitcoiniblt.bytearraydata.ByteArrayDataTransactionCoder;
-import se.rosenbaum.bitcoiniblt.bytearraydata.IBLTUtils;
 import se.rosenbaum.bitcoiniblt.printer.CellCountFailureProbabilityPrinter;
 import se.rosenbaum.bitcoiniblt.printer.FailureProbabilityPrinter;
 import se.rosenbaum.bitcoiniblt.printer.HashCountCellCountPrinter;
@@ -23,18 +14,8 @@ import se.rosenbaum.bitcoiniblt.util.ResultStats;
 import se.rosenbaum.bitcoiniblt.util.TestBatch;
 import se.rosenbaum.bitcoiniblt.util.TestBatchProducer;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
-import se.rosenbaum.bitcoiniblt.util.TransactionSets;
-import se.rosenbaum.iblt.IBLT;
 
 import java.io.IOException;
-import java.util.List;
-
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.replay;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 /**
  * What do I want to accomplish?
@@ -77,39 +58,18 @@ import static org.junit.Assert.assertNotNull;
  * minus-transactions. Unfortunately, we can't find blocks containing arbitrary amounts of transactions, so
  * we'll have to fake them, but we can still use real world transactions.
  */
-public class BlockStatsRun extends ClientCoderTest {
-    private TransactionSorter sorter;
-    private BlockCoder sut;
-
-    @Before
-    public void setup() {
-        sorter = new CanonicalOrderTransactionSorter();
-    }
-
-    private void createBlockCoder(TestConfig config) {
-        TransactionCoder transactionCoder = new ByteArrayDataTransactionCoder(getParams(), salt, config.getKeySize(),
-                config.getValueSize());
-        IBLT iblt = new IBLTUtils().createIblt(config.getCellCount(), config.getHashFunctionCount(), config.getKeySize(),
-                config.getValueSize(), config.getKeyHashSize());
-        sut = new BlockCoder(iblt, transactionCoder, sorter);
-    }
-
-    private void createBlockCoder(TestConfig config, IBLT iblt) {
-        TransactionCoder transactionCoder = new ByteArrayDataTransactionCoder(getParams(), salt, config.getKeySize(),
-                config.getValueSize());
-        sut = new BlockCoder(iblt, transactionCoder, sorter);
-    }
+public class BlockStatsRun extends BlockStatsClientCoderTest {
 
     @Test
     public void testHashFunctionCountVsCellCount() throws IOException {
-        int cellCountStart = 8192*2*2*2*2;
+        int cellCountStart = 8192 * 2 * 2 * 2 * 2;
         TestConfig config = new TestConfig(50, 50, 50, 1, 8, 270, 4, cellCountStart, false);
 
         Interval interval = new Interval(0, config.getCellCount());
 
         int minHashFunctionCount = 2;
         int maxHashFunctionCount = 10;
-        IBLTSizeBlockStatsPrinter printer = new HashCountCellCountPrinter(tempDirectory, maxHashFunctionCount-minHashFunctionCount + 1);
+        IBLTSizeBlockStatsPrinter printer = new HashCountCellCountPrinter(tempDirectory, maxHashFunctionCount - minHashFunctionCount + 1);
 
         for (int i = minHashFunctionCount; i <= maxHashFunctionCount; i++) {
             config.setHashFunctionCount(i);
@@ -142,33 +102,72 @@ public class BlockStatsRun extends ClientCoderTest {
     }
 
     @Test
-    public void testFind1pctLine2() throws IOException {
-        TestConfig config = new TestConfig(0, 0, 0, 3, 8, 270, 4, 16, true);
-//        int[] diffs = new int[] {4, 16, 64, 256, 1024, 4096};
-//        int[][] initialIntervals = new int[][] {{30,81},{150, 252},{450,651},{1300,1800},{4000,5001},{8000,16500}};
+    public void testFindRoughEstimate() throws IOException {
+        FailureProbabilityPrinter printer = new CellCountFailureProbabilityPrinter(tempDirectory);
+        TestConfig config = new TestConfig(256, 256, 256, 3, 8, 64, 4, 0, true);
+        findRoughEstimate(printer, config);
+    }
 
-        int[][] tests = new int[][] {{32, 250, 550},
-                                     {64, 450, 1000},
-                                     {128, 700, 1400},
-                                     {256, 1300, 2100},
-                                     {512, 2000, 3500},
-                                     {1024, 4000, 5200}};
-        int intermediaryCount = 3;
+    private int[] findRoughEstimate(FailureProbabilityPrinter printer, TestConfig testConfig) throws IOException {
+        int extras = testConfig.getExtraTxCount();
+        int absents = testConfig.getAbsentTxCount();
+        int diffs = extras + absents;
+
+        // valueSize
+        int valueSize = testConfig.getValueSize();
+        int avgCellCountPerTx = (200 / valueSize) + 1;
+
+        int cellCount = 3 * (absents / avgCellCountPerTx + extras);
+
+        testConfig.setCellCountMultiple(cellCount);
+        ResultStats resultHighP = testCellCountVSFailureProbability(printer, testConfig, 10);
+        while (resultHighP.getFailureProbability() < 1) {
+            testConfig.setCellCountMultiple(testConfig.getCellCount() / 2);
+            resultHighP = testCellCountVSFailureProbability(printer, testConfig, 10);
+        }
+        while (resultHighP.getFailureProbability() == 1) {
+            testConfig.setCellCountMultiple((int) (testConfig.getCellCount() + 50));
+            resultHighP = testCellCountVSFailureProbability(printer, testConfig, 10);
+        }
+        TestConfig highConfig = new TestConfig(testConfig);
+
+        ResultStats resultLowP = testCellCountVSFailureProbability(printer, testConfig, 10);
+        while (resultLowP.getFailureProbability() > 0) {
+            testConfig.setCellCountMultiple(testConfig.getCellCount() + 50);
+            resultLowP = testCellCountVSFailureProbability(printer, testConfig, 10);
+        }
+        TestConfig lowConfig = new TestConfig(testConfig);
+
+        System.out.println("HighConfig: " + highConfig.getCellCount());
+        System.out.println("LowConfig: " + lowConfig.getCellCount());
+        return new int[] {highConfig.getCellCount(), lowConfig.getCellCount()};
+
+
+    }
+
+    private void testFind1pctLine(int valueSize) throws IOException {
+        TestConfig config = new TestConfig(0, 0, 0, 3, 8, valueSize, 4, 16, true);
+
+        int[] tests = new int[]{32, 64, 128, 256, 512, 1024};
 
         OnePercentLineFailureProbabilityPrinter printer = new OnePercentLineFailureProbabilityPrinter(tempDirectory);
         for (int i = 0; i < tests.length; i++) {
-            int diffs = tests[i][0];
+            int diffs = tests[i];
             int halfDiffs = diffs / 2;
             config.setTxCount(halfDiffs);
             config.setExtraTxCount(halfDiffs);
             config.setAbsentTxCount(halfDiffs);
 
-            int min = tests[i][1];
-            int max = tests[i][2];
+            int[] cellCountEstimates = findRoughEstimate(printer, config);
+            int min = cellCountEstimates[0];
+            int max = cellCountEstimates[1];
 
-            for (int cellCount = min; cellCount <= max; cellCount += (max - min)/(intermediaryCount + 1)) {
-                config.setCellCount(cellCount - cellCount % config.getHashFunctionCount());
-                ResultStats result = testCellCountVSFailureProbability(printer, config, 10000);
+            int step = (max - min) / 4;
+
+            for (int j = 0; j < 7; j++) {
+                config.setCellCountMultiple(min + step * j);
+                step = (int)(step * 1.4);
+                ResultStats result = testCellCountVSFailureProbability(printer, config, j > 3 ? 100000 : 10000);
                 printer.addResult(config, result);
             }
         }
@@ -176,11 +175,26 @@ public class BlockStatsRun extends ClientCoderTest {
     }
 
     @Test
+    public void testFind1pctLine270() throws IOException {
+        testFind1pctLine(270);
+    }
+
+    @Test
+    public void testFind1pctLine64() throws IOException {
+        testFind1pctLine(64);
+    }
+
+    // TODO:
+    // hashFunctionCount vs Failureprobability --> select best hashFunctionCount
+    // possibly redo testFind1pctLine64 and testFind1pctLine270 with new hashFunctionCount
+    //
+
+    @Test
     public void testValueSizeVsCellCount() throws IOException {
         TestConfig config = new TestConfig(50, 50, 50, 4, 8, 8, 4, 32384, false);
         Interval interval = new Interval(0, config.getCellCount());
 
-        int[] category = new int[] {8, 16, 32, 64, 128, 256, 270, 280, 512, 1024, 2048};
+        int[] category = new int[]{8, 16, 32, 64, 128, 256, 270, 280, 512, 1024, 2048};
         IBLTSizeBlockStatsPrinter printer = new ValueSizeCellCountPrinter(tempDirectory, category.length);
 
         for (int i = 0; i < category.length; i++) {
@@ -256,7 +270,7 @@ public class BlockStatsRun extends ClientCoderTest {
         TestConfig config = new TestConfig(500, 500, 500, 3, 8, 270, 4, 0, true);
 
         for (int i = 0; i < dataPoints; i++) {
-            config.setCellCount(startCellCount + i* cellCountIncrement);
+            config.setCellCount(startCellCount + i * cellCountIncrement);
             ResultStats resultStats = testCellCountVSFailureProbability(printer, config, sampleCount);
             printer.addResult(config, resultStats);
             if (resultStats.getFailures() < 40) {
@@ -277,7 +291,7 @@ public class BlockStatsRun extends ClientCoderTest {
         TestConfig config = new TestConfig(500, 500, 500, 3, 8, 270, 4, 0, true);
 
         for (int i = 0; i < dataPoints; i++) {
-            config.setCellCount(startCellCount + i* cellCountIncrement);
+            config.setCellCount(startCellCount + i * cellCountIncrement);
             ResultStats resultStats = testCellCountVSFailureProbability(printer, config, sampleCount);
             printer.addResult(config, resultStats);
             if (resultStats.getFailures() < 40) {
@@ -298,65 +312,6 @@ public class BlockStatsRun extends ClientCoderTest {
             stats.addSample(result);
         }
         return stats;
-    }
-
-    public BlockStatsResult testBlockStats(TestConfig config) throws IOException {
-        createBlockCoder(config);
-        TransactionSets sets = createTransactionSets(config);
-
-        List<Transaction> sortedBlockTransactions = sorter.sort(sets.getSendersTransactions());
-
-        Block myBlock = EasyMock.createMock(Block.class);
-        expect(myBlock.getTransactions()).andReturn(sortedBlockTransactions);
-
-        Block recreatedBlock = EasyMock.createMock(Block.class);
-        Capture<Transaction> capture = new Capture<Transaction>(CaptureType.ALL);
-        recreatedBlock.addTransaction(EasyMock.capture(capture));
-        expectLastCall().anyTimes();
-
-        replay(recreatedBlock, myBlock);
-
-        BlockStatsResult result = new BlockStatsResult();
-
-        long startTime = System.currentTimeMillis();
-        IBLT iblt = sut.encode(myBlock);
-        result.setEncodingTime(System.currentTimeMillis() - startTime);
-        result.setTotalKeysCount(sut.getEncodedEntriesCount());
-
-        createBlockCoder(config, iblt);
-
-        startTime = System.currentTimeMillis();
-        Block resultBlock = sut.decode(recreatedBlock, sets.getReceiversTransactions());
-        result.setDecodingTime(System.currentTimeMillis() - startTime);
-        result.setResidualKeysCount(sut.getResidualEntriesCount());
-
-        if (resultBlock == null) {
-            result.setSuccess(false);
-            return result;
-        }
-
-        List<Transaction> decodedTransaction = capture.getValues();
-        assertListsEqual(sortedBlockTransactions, decodedTransaction);
-        result.setSuccess(true);
-        return result;
-    }
-
-    private TransactionSets createTransactionSets(TestConfig config) {
-        return createTransactionSets(config.getTxCount(), config.getExtraTxCount(), config.getAbsentTxCount(), config.isRandomTxSelection());
-    }
-
-    private void assertListsEqual(List expected, List actual) {
-        if (expected == null && actual == null) {
-            return;
-        }
-        assertNotNull(expected);
-        assertNotNull(actual);
-        assertEquals(expected.size(), actual.size());
-        assertArrayEquals(expected.toArray(new Object[0]), actual.toArray(new Object[0]));
-    }
-
-    public NetworkParameters getParams() {
-        return MainNetParams.get();
     }
 
 }

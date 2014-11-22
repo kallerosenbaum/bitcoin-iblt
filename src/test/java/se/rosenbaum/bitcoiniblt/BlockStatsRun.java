@@ -184,10 +184,10 @@ public class BlockStatsRun extends BlockStatsClientCoderTest {
         testFind1pctLine(64);
     }
 
-    // TODO:
-    // hashFunctionCount vs Failureprobability --> select best hashFunctionCount
-    // possibly redo testFind1pctLine64 and testFind1pctLine270 with new hashFunctionCount
-    //
+    // TODO: hashFunctionCount vs Failureprobability --> select best hashFunctionCount
+    // TODO: possibly redo testFind1pctLine64 and testFind1pctLine270 with new hashFunctionCount
+    // TODO: Do a diffCount vs Failure probability.
+    // TODO: Compare 64 bytes value size with 270 bytes side by side
 
     @Test
     public void testValueSizeVsCellCount() throws IOException {

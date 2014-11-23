@@ -10,7 +10,9 @@ import org.easymock.EasyMock;
 import org.junit.Before;
 import se.rosenbaum.bitcoiniblt.bytearraydata.ByteArrayDataTransactionCoder;
 import se.rosenbaum.bitcoiniblt.bytearraydata.IBLTUtils;
+import se.rosenbaum.bitcoiniblt.printer.FailureProbabilityPrinter;
 import se.rosenbaum.bitcoiniblt.util.BlockStatsResult;
+import se.rosenbaum.bitcoiniblt.util.ResultStats;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
 import se.rosenbaum.bitcoiniblt.util.TransactionSets;
 import se.rosenbaum.iblt.IBLT;
@@ -108,4 +110,17 @@ public class BlockStatsClientCoderTest extends ClientCoderTest {
         return MainNetParams.get();
     }
 
+
+    protected ResultStats testFailureProbability(FailureProbabilityPrinter printer, TestConfig config, int sampleCount) throws IOException {
+        ResultStats stats = new ResultStats();
+
+        for (int i = 0; i < sampleCount; i++) {
+            if (i % 99 == 0 && i > 0) {
+                printer.logResult(config, stats);
+            }
+            BlockStatsResult result = testBlockStats(config);
+            stats.addSample(result);
+        }
+        return stats;
+    }
 }

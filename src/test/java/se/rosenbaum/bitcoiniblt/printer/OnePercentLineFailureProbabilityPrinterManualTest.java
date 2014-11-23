@@ -11,7 +11,7 @@ public class OnePercentLineFailureProbabilityPrinterManualTest {
     public void updateOldFileVersions() throws IOException {
         String tmpDir = System.getProperty("iblt.output.dir", ".");
         File tempDirectory = new File(new File(tmpDir), "data");
-        OnePercentLineFailureProbabilityPrinter printer = new OnePercentLineFailureProbabilityPrinter(tempDirectory);
+        CellCountVSFailureProbabilityPrinter printer = new CellCountVSFailureProbabilityPrinter(tempDirectory);
         printer.parseCsv(new File(tempDirectory, "onePercentLine-Stats20141110-2046.csv"));
         printer.finish();
     }

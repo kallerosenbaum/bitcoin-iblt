@@ -1,14 +1,28 @@
 package se.rosenbaum.bitcoiniblt.printer;
 
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.axis.LogarithmicAxis;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
+import org.jfree.data.xy.DefaultTableXYDataset;
+import org.jfree.data.xy.XYSeries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.rosenbaum.bitcoiniblt.util.ResultStats;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.util.List;
+import java.util.Map;
 import java.util.StringTokenizer;
 
 public abstract class FailureProbabilityPrinter extends BlockStatsPrinter {
@@ -128,6 +142,55 @@ public abstract class FailureProbabilityPrinter extends BlockStatsPrinter {
 
     private int parseInt(StringTokenizer tokenizer) {
         return Integer.parseInt(tokenizer.nextToken());
+    }
+
+    protected void createLogarithmicProbabilityPrinter(Map<Comparable, List<DataPoint>> dataPoints, String title, String xAxisLabel, String yAxisLabel, File file) throws IOException {
+        DefaultTableXYDataset dataSet = new DefaultTableXYDataset();
+        for (Map.Entry<? extends Comparable, List<DataPoint>> listEntry : dataPoints.entrySet()) {
+            XYSeries series = new XYSeries(listEntry.getKey(), true, false);
+            for (DataPoint point : listEntry.getValue()) {
+                series.add(point.category, point.yValue == 0 ? 0.000000001 : point.yValue);
+            }
+            dataSet.addSeries(series);
+        }
+
+        JFreeChart chart = ChartFactory.createXYLineChart(title, xAxisLabel, yAxisLabel, dataSet, PlotOrientation.VERTICAL,
+                true, false, false);
+
+        printChart(yAxisLabel, file, chart);
+    }
+
+    protected void createLogarithmicProbabilityPrinter(List<DataPoint> dataPoints, String title, String xAxisLabel, String yAxisLabel, File file) throws IOException {
+        DefaultTableXYDataset dataSet = new DefaultTableXYDataset();
+        XYSeries series = new XYSeries("1", true, false);
+        for (DataPoint point : dataPoints) {
+            series.add(point.category, point.yValue == 0 ? 0.000000001 : point.yValue);
+        }
+        dataSet.addSeries(series);
+        JFreeChart chart = ChartFactory.createXYLineChart(title, xAxisLabel, yAxisLabel, dataSet, PlotOrientation.VERTICAL,
+                false, false, false);
+
+        printChart(yAxisLabel, file, chart);
+    }
+
+    private void printChart(String yAxisLabel, File file, JFreeChart chart) throws IOException {
+        LogarithmicAxis yAxis = new LogarithmicAxis(yAxisLabel);
+
+        XYPlot plot = chart.getXYPlot();
+        plot.setRangeAxis(yAxis);
+
+        plot.getDomainAxis().setVerticalTickLabels(true);
+        plot.setRenderer(new XYLineAndShapeRenderer(true, true));
+
+        BufferedImage image = chart.createBufferedImage(600,400);
+
+        OutputStream out = new FileOutputStream(file);
+        try {
+            ImageIO.write(image, "png", out);
+        } catch (IOException e) {
+            logger.error("Failed to write image.", e);
+        }
+        out.close();
     }
 
     public static class DataPoint {

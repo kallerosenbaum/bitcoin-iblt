@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static junit.framework.Assert.assertNotNull;
+import static junit.framework.Assert.assertNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -63,11 +64,28 @@ public class BlockClientCoderTest extends ClientCoderTest {
     }
 
     @Test
-    public void testFiftyExtraAndAbsentTx() throws Exception {
-        testEncodeDecode(50, 50);
+    public void testMaxExtraAndAbsentTx() throws Exception {
+        // This is the maximum amount of differences I can get
+        testEncodeDecode(18, 20);
+    }
+
+    @Test
+    public void testMoreThanMaxExtraTx() throws Exception {
+        // This is the maximum amount of differences I can get
+        testEncodeDecode(19, 20, false);
+    }
+
+    @Test
+    public void testMoreThanMaxAbsentTx() throws Exception {
+        // This is the maximum amount of differences I can get
+        testEncodeDecode(18, 21, false);
     }
 
     private void testEncodeDecode(int extraCount, int absentCount) {
+        testEncodeDecode(extraCount, absentCount, true);
+    }
+
+    private void testEncodeDecode(int extraCount, int absentCount, boolean expectSuccess) {
         Block block = getBlock();
         IBLT<LongData, LongData> iblt = sut.encode(block);
         List<Transaction> blockTransactions = block.getTransactions();
@@ -77,8 +95,13 @@ public class BlockClientCoderTest extends ClientCoderTest {
         sut = createBlockCoder(iblt);
 
         Block result = sut.decode(block.cloneAsHeader(), myTransactions);
-        assertNotNull(result);
-        assertEquals(block, result);
+        if (expectSuccess) {
+            assertNotNull(result);
+            assertEquals(block, result);
+        } else {
+            assertNull(result);
+        }
+
     }
 
     protected List<Transaction> getMyTransactions(List<Transaction> blockTransactions, int extraCount, int absentCount) {

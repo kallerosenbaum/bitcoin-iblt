@@ -123,4 +123,8 @@ public class TestConfig {
     public void setRandomTxSelection(boolean randomTxSelection) {
         this.randomTxSelection = randomTxSelection;
     }
+
+    public TransactionSets createTransactionSets() {
+        return new TransactionSets();
+    };
 }

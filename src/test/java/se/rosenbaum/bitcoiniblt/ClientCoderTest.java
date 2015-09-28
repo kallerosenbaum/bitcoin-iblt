@@ -11,6 +11,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import se.rosenbaum.bitcoiniblt.util.TestConfig;
 import se.rosenbaum.bitcoiniblt.util.TransactionCollectorProcessor;
 import se.rosenbaum.bitcoiniblt.util.TransactionProcessor;
 import se.rosenbaum.bitcoiniblt.util.TransactionSets;
@@ -264,5 +265,20 @@ public abstract class ClientCoderTest extends CoderTest {
 
         processTransactions(MAINNET_BLOCK, Integer.MAX_VALUE, transactionCollector);
         return transactionCollector.getTransactions();
+    }
+
+    public class RandomTransactionsTestConfig extends TestConfig {
+        public RandomTransactionsTestConfig(int txCount, int extraTxCount, int absentTxCount, int hashFunctionCount, int keySize, int valueSize, int keyHashSize, int cellCount, boolean randomTxSelection) {
+            super(txCount, extraTxCount, absentTxCount, hashFunctionCount, keySize, valueSize, keyHashSize, cellCount, randomTxSelection);
+        }
+
+        public RandomTransactionsTestConfig(TestConfig other) {
+            super(other);
+        }
+
+        @Override
+        public TransactionSets createTransactionSets() {
+            return ClientCoderTest.this.createTransactionSets(getTxCount(), getExtraTxCount(), getAbsentTxCount(), isRandomTxSelection());
+        }
     }
 }

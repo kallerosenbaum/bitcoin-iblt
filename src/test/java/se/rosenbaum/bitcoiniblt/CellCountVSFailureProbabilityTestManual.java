@@ -48,14 +48,14 @@ public class CellCountVSFailureProbabilityTestManual extends BlockStatsClientCod
             testConfig.setCellCountMultiple((int) (testConfig.getCellCount() + 50));
             resultHighP = testFailureProbability(printer, testConfig, 10);
         }
-        TestConfig highConfig = new TestConfig(testConfig);
+        TestConfig highConfig = new RandomTransactionsTestConfig(testConfig);
 
         ResultStats resultLowP = testFailureProbability(printer, testConfig, 10);
         while (resultLowP.getFailureProbability() > 0) {
             testConfig.setCellCountMultiple(testConfig.getCellCount() + 50);
             resultLowP = testFailureProbability(printer, testConfig, 10);
         }
-        TestConfig lowConfig = new TestConfig(testConfig);
+        TestConfig lowConfig = new RandomTransactionsTestConfig(testConfig);
 
         System.out.println("HighConfig: " + highConfig.getCellCount());
         System.out.println("LowConfig: " + lowConfig.getCellCount());
@@ -65,7 +65,7 @@ public class CellCountVSFailureProbabilityTestManual extends BlockStatsClientCod
     }
 
     private void testFind1pctLine(int valueSize) throws IOException {
-        TestConfig config = new TestConfig(0, 0, 0, 3, 8, valueSize, 4, 16, true);
+        TestConfig config = new RandomTransactionsTestConfig(0, 0, 0, 3, 8, valueSize, 4, 16, true);
 
         int[] tests = new int[]{32, 64, 128, 256, 512, 1024};
 

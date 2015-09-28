@@ -53,7 +53,7 @@ public class BlockStatsClientCoderTest extends ClientCoderTest {
 
     public BlockStatsResult testBlockStats(TestConfig config) throws IOException {
         createBlockCoder(config);
-        TransactionSets sets = createTransactionSets(config);
+        TransactionSets sets = config.createTransactionSets();
 
         List<Transaction> sortedBlockTransactions = sorter.sort(sets.getSendersTransactions());
 
@@ -90,10 +90,6 @@ public class BlockStatsClientCoderTest extends ClientCoderTest {
         assertListsEqual(sortedBlockTransactions, decodedTransaction);
         result.setSuccess(true);
         return result;
-    }
-
-    private TransactionSets createTransactionSets(TestConfig config) {
-        return createTransactionSets(config.getTxCount(), config.getExtraTxCount(), config.getAbsentTxCount(), config.isRandomTxSelection());
     }
 
     private void assertListsEqual(List expected, List actual) {

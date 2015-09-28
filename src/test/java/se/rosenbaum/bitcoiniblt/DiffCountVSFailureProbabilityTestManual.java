@@ -11,7 +11,7 @@ public class DiffCountVSFailureProbabilityTestManual extends BlockStatsClientCod
 
     @Test
     public void testRustyRussell() throws IOException {
-        TestConfig config = new TestConfig(0, 0, 0, 4, 8, 8, 4, 52428, true);
+        TestConfig config = new RandomTransactionsTestConfig(0, 0, 0, 4, 8, 8, 4, 52428, true);
 
         DiffCountVSFailureProbabilityPrinter printer = new DiffCountVSFailureProbabilityPrinter(tempDirectory);
 
@@ -32,7 +32,7 @@ public class DiffCountVSFailureProbabilityTestManual extends BlockStatsClientCod
 
     @Test
     public void testDiffCountVSFailureProbability() throws IOException {
-        TestConfig config = new TestConfig(0, 0, 0, 3, 8, 64, 4, 3000, true);
+        TestConfig config = new RandomTransactionsTestConfig(0, 0, 0, 3, 8, 64, 4, 3000, true);
 
         DiffCountVSFailureProbabilityPrinter printer = new DiffCountVSFailureProbabilityPrinter(tempDirectory);
         for (int i = 3; i <= 5; i++) {

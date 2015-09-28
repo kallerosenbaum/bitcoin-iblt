@@ -56,7 +56,7 @@ public class BlockStatsRun extends BlockStatsClientCoderTest {
     @Test
     public void testHashFunctionCountVsCellCount() throws IOException {
         int cellCountStart = 8192 * 2 * 2 * 2 * 2;
-        TestConfig config = new TestConfig(50, 50, 50, 1, 8, 270, 4, cellCountStart, false);
+        TestConfig config = new RandomTransactionsTestConfig(50, 50, 50, 1, 8, 270, 4, cellCountStart, false);
 
         Interval interval = new Interval(0, config.getCellCount());
 
@@ -96,7 +96,7 @@ public class BlockStatsRun extends BlockStatsClientCoderTest {
 
     @Test
     public void testValueSizeVsCellCount() throws IOException {
-        TestConfig config = new TestConfig(50, 50, 50, 4, 8, 8, 4, 32384, false);
+        TestConfig config = new RandomTransactionsTestConfig(50, 50, 50, 4, 8, 8, 4, 32384, false);
         Interval interval = new Interval(0, config.getCellCount());
 
         int[] category = new int[]{8, 16, 32, 64, 128, 256, 270, 280, 512, 1024, 2048};

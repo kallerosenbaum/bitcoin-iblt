@@ -1,18 +1,31 @@
 package se.rosenbaum.bitcoiniblt.corpus;
 
+import org.bitcoinj.core.Transaction;
 import org.junit.Before;
 import org.junit.Test;
+import se.rosenbaum.bitcoiniblt.BlockStatsClientCoderTest;
+import se.rosenbaum.bitcoiniblt.printer.FailureProbabilityPrinter;
+import se.rosenbaum.bitcoiniblt.printer.IBLTSizeVsFailureProbabilityPrinter;
+import se.rosenbaum.bitcoiniblt.util.BlockStatsResult;
+import se.rosenbaum.bitcoiniblt.util.Interval;
+import se.rosenbaum.bitcoiniblt.util.ResultStats;
+import se.rosenbaum.bitcoiniblt.util.TestConfig;
+import se.rosenbaum.bitcoiniblt.util.TransactionSets;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
-public class CorpusDataTestManual {
+public class CorpusDataTestManual extends BlockStatsClientCoderTest {
 
     private CorpusData corpusData;
 
     @Before
     public void setup() {
+        super.setup();
         corpusData = new CorpusData(new File("/home/kalle/hack/git/rusty/bitcoin-corpus"));
+        MAINNET_BLOCK = CorpusData.HIGHEST_BLOCK_HASH;
+
     }
 
     @Test
@@ -79,4 +92,74 @@ public class CorpusDataTestManual {
     }
 
 
+    @Test
+    public void testFactor1() throws IOException {
+        corpusData.calculateStatistics();
+        blockCount = corpusData.blockCount;
+
+        int factor = 1000;
+        int sampleCount = 1000;
+
+        int extras = (int) Math.ceil(corpusData.averageExtrasPerBlock) * factor;
+
+        FailureProbabilityPrinter printer = new IBLTSizeVsFailureProbabilityPrinter(tempDirectory);
+
+        CorpusDataTestConfig testConfig = new CorpusDataTestConfig(extras, extras, 100002);
+
+        Interval interval = new Interval(0, testConfig.getCellCount());
+        while (true) {
+            ResultStats result = testFailureProbability(printer, testConfig, sampleCount);
+
+            if (result.getFailureProbability() > 0.02 && result.getFailureProbability() < 0.1) {
+                printer.addResult(testConfig, result);
+            }
+
+            if (result.getFailureProbability() < 0.05) {
+                interval.setHigh(testConfig.getCellCount());
+            } else {
+                interval.setLow(testConfig.getCellCount());
+            }
+            testConfig = new CorpusDataTestConfig(extras, extras, interval.nextValue(testConfig));
+
+            if (!interval.isInsideInterval(testConfig.getCellCount())) {
+                break;
+            }
+        }
+
+        printer.finish();
+    }
+
+    @Test
+    public void testGenerateTestFileFactor1() throws IOException {
+        corpusData.calculateStatistics();
+        blockCount = corpusData.blockCount;
+
+        int factor = 1000;
+        int sampleCount = 1000;
+
+        int extras = (int) Math.ceil(corpusData.averageExtrasPerBlock) * factor;
+
+        CorpusDataTestConfig testConfig = new CorpusDataTestConfig(extras, extras, 100002);
+
+
+    }
+
+
+    private class CorpusDataTestConfig extends TestConfig {
+
+        public CorpusDataTestConfig(int extraTxCount, int absentTxCount, int cellCount) {
+            super(0, extraTxCount, absentTxCount, 3, 8, 64, 4, cellCount);
+        }
+
+        @Override
+        public TransactionSets createTransactionSets() {
+            List<Transaction> randomTransactions = getRandomTransactions(getExtraTxCount() + getAbsentTxCount());
+            TransactionSets transactionSets = new TransactionSets();
+            // As with most other tests, we just care about differences. Transactions that are both in sender's and
+            // receiver's transacitons will just be added and deleted so they don't affect the result.
+            transactionSets.setSendersTransactions(randomTransactions.subList(0, getExtraTxCount()));
+            transactionSets.setReceiversTransactions(randomTransactions.subList(getExtraTxCount(), getExtraTxCount() + getAbsentTxCount()));
+            return transactionSets;
+        }
+    }
 }

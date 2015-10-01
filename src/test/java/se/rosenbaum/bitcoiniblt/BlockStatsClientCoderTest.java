@@ -111,11 +111,11 @@ public class BlockStatsClientCoderTest extends ClientCoderTest {
         ResultStats stats = new ResultStats();
 
         for (int i = 0; i < sampleCount; i++) {
+            BlockStatsResult result = testBlockStats(config);
+            stats.addSample(result);
             if (i % 99 == 0 && i > 0) {
                 printer.logResult(config, stats);
             }
-            BlockStatsResult result = testBlockStats(config);
-            stats.addSample(result);
         }
         return stats;
     }

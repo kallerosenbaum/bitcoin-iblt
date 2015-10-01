@@ -18,10 +18,11 @@ public class CorpusData {
     double txRate = 0;
     double averageExtrasPerBlock = 0;
     double extrasPerTxRate = 0;
+    int highestBlock;
     Set<Integer> orphans;
     Set<Integer> blocks;
     Set<Sha256Hash> transactions = new HashSet<Sha256Hash>();
-
+    public static final String HIGHEST_BLOCK_HASH = "000000000000000011defeab02396f6982807ec911a9294a0c8411d0c5f2f5a3";
     public CorpusData(File corpusDirectory) {
         this.corpusDirectory = corpusDirectory;
     }
@@ -67,6 +68,7 @@ public class CorpusData {
                     if (!foundBlocks.contains(record.blockNumber)) {
                         foundBlocks.add(record.blockNumber);
                         blockCount++;
+                        this.highestBlock = record.blockNumber;
                     } else {
                         deadBlocks.add(record.blockNumber);
                     }

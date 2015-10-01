@@ -3,10 +3,12 @@ package se.rosenbaum.bitcoiniblt;
 import org.bitcoinj.core.Block;
 import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.Sha256Hash;
+import org.bitcoinj.core.StoredBlock;
 import org.bitcoinj.core.Transaction;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.params.TestNet3Params;
 import org.bitcoinj.store.BlockStoreException;
+import org.bitcoinj.store.SPVBlockStore;
 import org.junit.After;
 import org.junit.Before;
 import org.slf4j.Logger;
@@ -22,10 +24,14 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -48,17 +54,18 @@ public abstract class ClientCoderTest extends CoderTest {
     private WalletAppKit walletAppKit = null;
 
     // Production network block.
-    public static final String MAINNET_BLOCK = "0000000000000000152c3db4fe011716c4e5d41e44089e1da9d7d64917bb5011";
+    protected String MAINNET_BLOCK = "0000000000000000152c3db4fe011716c4e5d41e44089e1da9d7d64917bb5011";
 
     // Test network block
-    public static final String TESTNET_BLOCK = "00000000e4a728571997c669c52425df5f529dd370fa9164c64fd60a49e245c4";
+    protected String TESTNET_BLOCK = "00000000e4a728571997c669c52425df5f529dd370fa9164c64fd60a49e245c4";
 
     protected File tempDirectory;
     private File blockDirectory;
     private File walletDirectory;
-    private Sha256Hash[] hashes;
+    private Sha256Hash[] blockHashes;
     private Random random;
     private Map<Sha256Hash, Block> blockCache = new HashMap<Sha256Hash, Block>();
+    protected int blockCount = 1000;
 
     @Before
     public void setupWallet() throws ExecutionException, InterruptedException, BlockStoreException {
@@ -75,7 +82,7 @@ public abstract class ClientCoderTest extends CoderTest {
         walletDirectory.mkdirs();
     }
 
-    private void startWallet() {
+    protected void startWallet() {
         walletAppKit = new WalletAppKit(getParams(), walletDirectory, "iblt" + getParams().getClass().getSimpleName());
         walletAppKit.startAsync().awaitRunning();
     }
@@ -170,29 +177,30 @@ public abstract class ClientCoderTest extends CoderTest {
     // different number of tx. Transactions in Blocks with few transactions
     // will have a higher frequency, but who gives?
     private Transaction getRandomTransaction(boolean coinbase) {
-        assertTrue(1000 <= hashes.length);
+
+        assertTrue(blockCount <= blockHashes.length);
         if (random == null) {
             random = new Random();
         }
-        int blockIndex = random.nextInt(1000);
-        Block block = getBlock(hashes[blockIndex]);
+        int blockIndex = random.nextInt(blockCount);
+        Block block = getBlock(blockHashes[blockIndex]);
         while (!coinbase && block.getTransactions().size() == 1) {
-            blockIndex = random.nextInt(1000);
-            block = getBlock(hashes[blockIndex]);
+            blockIndex = random.nextInt(blockCount);
+            block = getBlock(blockHashes[blockIndex]);
         }
         int txIndex = coinbase ? 0 : random.nextInt(block.getTransactions().size() - 1) + 1;
         return block.getTransactions().get(txIndex);
     }
 
     protected List<Transaction> getRandomTransactions(int transactionCount) {
-        downloadBlocks(1000);
-        List<Transaction> result = new ArrayList<Transaction>(transactionCount);
+        downloadBlocks(blockCount);
+        Set<Transaction> result = new HashSet<Transaction>();
 
         if (transactionCount == 0) {
-            return result;
+            return Collections.emptyList();
         }
         // First get a random coinbase tx
-        result.add(getRandomTransaction(true));
+        Transaction coinbase = getRandomTransaction(true);
 
         for (int i = 1; i < transactionCount; i++) {
             Transaction randomTransaction = getRandomTransaction(false);
@@ -201,16 +209,24 @@ public abstract class ClientCoderTest extends CoderTest {
             }
             result.add(randomTransaction);
         }
-        return result;
+
+        List<Transaction> txList = new ArrayList<Transaction>(result.size() + 1);
+        txList.add(getRandomTransaction(true));
+        txList.addAll(result);
+        return txList;
     }
 
     private void downloadBlocks(int count) {
-        hashes = new Sha256Hash[count];
+        if (blockHashes != null && blockHashes.length == count) {
+            // Already downloaded
+            return;
+        }
+        blockHashes = new Sha256Hash[count];
         Block block = getBlock(new Sha256Hash(MAINNET_BLOCK));
-        hashes[0] = block.getHash();
+        blockHashes[0] = block.getHash();
         for (int i = 1; i < count; i++) {
             block = getBlock(block.getPrevBlockHash());
-            hashes[i] = block.getHash();
+            blockHashes[i] = block.getHash();
         }
     }
 
@@ -268,8 +284,11 @@ public abstract class ClientCoderTest extends CoderTest {
     }
 
     public class RandomTransactionsTestConfig extends TestConfig {
+        private boolean isRandomTxSelection;
+
         public RandomTransactionsTestConfig(int txCount, int extraTxCount, int absentTxCount, int hashFunctionCount, int keySize, int valueSize, int keyHashSize, int cellCount, boolean randomTxSelection) {
-            super(txCount, extraTxCount, absentTxCount, hashFunctionCount, keySize, valueSize, keyHashSize, cellCount, randomTxSelection);
+            super(txCount, extraTxCount, absentTxCount, hashFunctionCount, keySize, valueSize, keyHashSize, cellCount);
+            this.isRandomTxSelection = randomTxSelection;
         }
 
         public RandomTransactionsTestConfig(TestConfig other) {
@@ -278,7 +297,7 @@ public abstract class ClientCoderTest extends CoderTest {
 
         @Override
         public TransactionSets createTransactionSets() {
-            return ClientCoderTest.this.createTransactionSets(getTxCount(), getExtraTxCount(), getAbsentTxCount(), isRandomTxSelection());
+            return ClientCoderTest.this.createTransactionSets(getTxCount(), getExtraTxCount(), getAbsentTxCount(), isRandomTxSelection);
         }
     }
 }

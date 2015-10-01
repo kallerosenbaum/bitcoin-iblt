@@ -4,7 +4,7 @@ package se.rosenbaum.bitcoiniblt.util;
 * User: kalle
 * Date: 10/29/14 8:26 PM
 */
-public class TestConfig {
+public abstract class TestConfig {
     private int txCount;
     private int extraTxCount;
     private int absentTxCount;
@@ -13,10 +13,9 @@ public class TestConfig {
     private int valueSize;
     private int keyHashSize;
     private int cellCount;
-    private boolean randomTxSelection;
 
     public TestConfig(int txCount, int extraTxCount, int absentTxCount, int hashFunctionCount, int keySize,
-                      int valueSize, int keyHashSize, int cellCount, boolean randomTxSelection) {
+                      int valueSize, int keyHashSize, int cellCount) {
         this.setTxCount(txCount);
         this.setExtraTxCount(extraTxCount);
         this.setAbsentTxCount(absentTxCount);
@@ -25,7 +24,6 @@ public class TestConfig {
         this.setValueSize(valueSize);
         this.setKeyHashSize(keyHashSize);
         this.setCellCount(cellCount);
-        this.setRandomTxSelection(randomTxSelection);
     }
 
     public TestConfig(TestConfig other) {
@@ -37,7 +35,6 @@ public class TestConfig {
         this.setValueSize(other.valueSize);
         this.setKeyHashSize(other.keyHashSize);
         this.setCellCount(other.cellCount);
-        this.setRandomTxSelection(other.randomTxSelection);
     }
 
     public TestConfig() {
@@ -116,15 +113,5 @@ public class TestConfig {
         this.cellCount = cellCount;
     }
 
-    public boolean isRandomTxSelection() {
-        return randomTxSelection;
-    }
-
-    public void setRandomTxSelection(boolean randomTxSelection) {
-        this.randomTxSelection = randomTxSelection;
-    }
-
-    public TransactionSets createTransactionSets() {
-        return new TransactionSets();
-    };
+    public abstract TransactionSets createTransactionSets();
 }

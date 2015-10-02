@@ -106,12 +106,18 @@ public class BlockStatsClientCoderTest extends ClientCoderTest {
         return MainNetParams.get();
     }
 
+    protected ResultStats testFailureProbability(FailureProbabilityPrinter printer, TestConfig config) throws IOException {
+        return testFailureProbability(printer, config, Integer.MAX_VALUE);
+    }
 
     protected ResultStats testFailureProbability(FailureProbabilityPrinter printer, TestConfig config, int sampleCount) throws IOException {
         ResultStats stats = new ResultStats();
 
         for (int i = 0; i < sampleCount; i++) {
             BlockStatsResult result = testBlockStats(config);
+            if (result == null) {
+                break;
+            }
             stats.addSample(result);
             if (i % 99 == 0 && i > 0) {
                 printer.logResult(config, stats);

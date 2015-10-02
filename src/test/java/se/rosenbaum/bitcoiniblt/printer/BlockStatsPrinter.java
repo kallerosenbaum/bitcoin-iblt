@@ -20,7 +20,7 @@ public abstract class BlockStatsPrinter {
 
     public BlockStatsPrinter(File tempDirectory) throws IOException {
         this.tempDirectory = tempDirectory;
-        DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd-HHmm");
+        DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd-HHmmss");
         dateString = dateFormat.format(new Date());
         writer = new PrintWriter(new FileWriter(getFile(".csv")));
     }

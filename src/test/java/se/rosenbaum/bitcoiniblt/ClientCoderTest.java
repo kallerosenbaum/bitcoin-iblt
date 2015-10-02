@@ -1,14 +1,13 @@
 package se.rosenbaum.bitcoiniblt;
 
 import org.bitcoinj.core.Block;
+import org.bitcoinj.core.Message;
 import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.Sha256Hash;
-import org.bitcoinj.core.StoredBlock;
 import org.bitcoinj.core.Transaction;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.params.TestNet3Params;
 import org.bitcoinj.store.BlockStoreException;
-import org.bitcoinj.store.SPVBlockStore;
 import org.junit.After;
 import org.junit.Before;
 import org.slf4j.Logger;
@@ -17,14 +16,17 @@ import se.rosenbaum.bitcoiniblt.util.TestConfig;
 import se.rosenbaum.bitcoiniblt.util.TransactionCollectorProcessor;
 import se.rosenbaum.bitcoiniblt.util.TransactionProcessor;
 import se.rosenbaum.bitcoiniblt.util.TransactionSets;
+import se.rosenbaum.iblt.data.ByteArrayData;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -61,6 +63,7 @@ public abstract class ClientCoderTest extends CoderTest {
 
     protected File tempDirectory;
     private File blockDirectory;
+    private File transactionDirectory;
     private File walletDirectory;
     private Sha256Hash[] blockHashes;
     private Random random;
@@ -77,8 +80,10 @@ public abstract class ClientCoderTest extends CoderTest {
 
         tempDirectory = new File(new File(tmpDir), "data");
         blockDirectory = new File(tempDirectory, "blocks");
+        transactionDirectory = new File(tempDirectory, "transactions");
         walletDirectory = new File(tempDirectory, "wallet");
         blockDirectory.mkdirs();
+        transactionDirectory.mkdirs();
         walletDirectory.mkdirs();
     }
 
@@ -94,6 +99,19 @@ public abstract class ClientCoderTest extends CoderTest {
         }
     }
 
+    public Transaction getTransaction(Sha256Hash transactionId) throws IOException {
+        File txFile = new File(transactionDirectory, transactionId.toString());
+        if (txFile.exists()) {
+            byte[] fileContents = new byte[(int)txFile.length()];
+            InputStream inputStream = new FileInputStream(txFile);
+            if (fileContents.length != inputStream.read(fileContents)) {
+                throw new RuntimeException("Couldn't read transaction " + transactionId + " from file " + txFile.getAbsolutePath());
+            }
+            return new Transaction(getParams(), fileContents);
+        }
+        return null;
+    }
+
     public Block getBlock(Sha256Hash blockId) {
         try {
             logger.debug("Getting block {}", blockId);
@@ -106,6 +124,7 @@ public abstract class ClientCoderTest extends CoderTest {
             if (block != null) {
                 logger.debug("found on file system!");
                 blockCache.put(blockId, block);
+                saveTransactions(block);
                 return block;
             }
 
@@ -115,12 +134,19 @@ public abstract class ClientCoderTest extends CoderTest {
             block = walletAppKit.peerGroup().getDownloadPeer().getBlock(blockId).get();
             logger.debug("downladed!");
             saveBlockToDisk(block);
+            saveTransactions(block);
             blockCache.put(blockId, block);
             return block;
         } catch (Exception e) {
             e.printStackTrace();
             fail();
             return null;
+        }
+    }
+
+    private void saveTransactions(Block block) {
+        for (Transaction transaction : block.getTransactions()) {
+            saveToDisk(transactionDirectory, transaction);
         }
     }
 
@@ -151,17 +177,28 @@ public abstract class ClientCoderTest extends CoderTest {
     }
 
     private void saveBlockToDisk(Block block) {
+        saveToDisk(blockDirectory, block);
+    }
+
+    private void saveToDisk(File targetDirectory, Message message) {
         try {
-            logger.debug("Saving block {} to disk ... ", block.getHash().toString());
-            File blockFile = new File(blockDirectory, block.getHashAsString());
+            logger.debug("Saving " + message.getClass().getSimpleName() + " {} to disk ... ", message.getHash().toString());
+            File blockFile = getFile(targetDirectory, message);
+            if (blockFile.exists()) {
+                return;
+            }
             FileOutputStream out = new FileOutputStream(blockFile);
-            block.bitcoinSerialize(out);
+            message.bitcoinSerialize(out);
             out.close();
             logger.debug("done!");
         } catch (Exception e) {
             e.printStackTrace();
             fail();
         }
+    }
+
+    private File getFile(File targetDirectory, Message message) {
+        return new File(targetDirectory, message.getHash().toString());
     }
 
     public Block getBlock() {
@@ -192,17 +229,14 @@ public abstract class ClientCoderTest extends CoderTest {
         return block.getTransactions().get(txIndex);
     }
 
-    protected List<Transaction> getRandomTransactions(int transactionCount) {
+    protected List<Transaction> getRandomTransactions(int transactionCount, boolean includeCoinbase) {
         downloadBlocks(blockCount);
         Set<Transaction> result = new HashSet<Transaction>();
 
         if (transactionCount == 0) {
             return Collections.emptyList();
         }
-        // First get a random coinbase tx
-        Transaction coinbase = getRandomTransaction(true);
-
-        for (int i = 1; i < transactionCount; i++) {
+        for (int i = includeCoinbase ? 1 : 0; i < transactionCount; i++) {
             Transaction randomTransaction = getRandomTransaction(false);
             while (result.contains(randomTransaction)) {
                 randomTransaction = getRandomTransaction(false);
@@ -211,7 +245,9 @@ public abstract class ClientCoderTest extends CoderTest {
         }
 
         List<Transaction> txList = new ArrayList<Transaction>(result.size() + 1);
-        txList.add(getRandomTransaction(true));
+        if (includeCoinbase) {
+            txList.add(getRandomTransaction(true)); // Add a coinbase
+        }
         txList.addAll(result);
         return txList;
     }
@@ -256,7 +292,7 @@ public abstract class ClientCoderTest extends CoderTest {
     protected TransactionSets createTransactionSets(int txCount, int extraCount, int absentCount, boolean randomSelection) {
         List<Transaction> collectedTransactions;
         if (randomSelection) {
-            collectedTransactions = getRandomTransactions(txCount + absentCount);
+            collectedTransactions = getRandomTransactions(txCount + absentCount, true);
         } else {
             collectedTransactions = getSameOldTransactions(txCount + absentCount);
         }

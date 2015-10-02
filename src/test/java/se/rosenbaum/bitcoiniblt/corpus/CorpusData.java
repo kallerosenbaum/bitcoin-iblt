@@ -43,6 +43,21 @@ public class CorpusData {
         RecordInputStream recordInputStream = new RecordInputStream(inputStream);
         return recordInputStream;
     }
+    public interface RecordHandler {
+        void handle(Record record);
+    }
+
+    public void getStats(Node node, RecordHandler handler) throws IOException {
+        Record record;
+
+        RecordInputStream recordInputStream = getRecordInputStream(node);
+        record = recordInputStream.readRecord();
+        while (record != null) {
+            handler.handle(record);
+            record = recordInputStream.readRecord();
+        }
+        recordInputStream.close();
+    }
 
     public void calculateStatistics() throws IOException {
         Record record;
@@ -77,6 +92,7 @@ public class CorpusData {
             lastRecord = record;
             record = recordInputStream.readRecord();
         }
+        recordInputStream.close();
         this.orphans = deadBlocks;
         this.blocks = foundBlocks;
         timespan = lastRecord.timestamp - timespan;
@@ -101,6 +117,7 @@ public class CorpusData {
                 }
                 record = recordInputStream.readRecord();
             }
+            recordInputStream.close();
         }
 
         averageExtrasPerBlock = (double)extraCount / (blockCount * Node.values().length);

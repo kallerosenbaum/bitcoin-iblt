@@ -5,7 +5,7 @@ package se.rosenbaum.bitcoiniblt.corpus;
  * Date: 2015-09-23 19:29
  */
 enum Type {
-    INCOMING_TX(1), COINBASE(2), UNKNOWN(3), KNOWN(4), MOMPOOL_ONLY(5);
+    INCOMING_TX(1), COINBASE(2), UNKNOWN(3), KNOWN(4), MEMPOOL_ONLY(5);
 
     private int number;
 

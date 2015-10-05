@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public class RecordInputStream {
+    public static final int MIN_WARM_BLOCK_HEIGHT = 352305;
     byte[] recordBytes = new byte[40];
     LittleEndianDataInputStream in;
 
@@ -40,7 +41,7 @@ public class RecordInputStream {
      arrays.  See example/simple-analysis.c.
 
      */
-    public Record readRecord() throws IOException {
+    private Record readRecordInternal() throws IOException {
         int read = in.read(recordBytes);
         if (read == -1) {
             return null;
@@ -54,6 +55,15 @@ public class RecordInputStream {
         record.type = Type.of((int) readUnsignedInt(recordBytes, 4, 1));
         record.blockNumber = (int)readUnsignedInt(recordBytes, 5, 3);
         record.txid = Arrays.copyOfRange(recordBytes, 8, 40);
+        return record;
+    }
+
+    public Record readRecord() throws IOException {
+        // Skip the warm-up phase. The real data starts at height 352305
+        Record record;
+        do {
+            record = readRecordInternal();
+        } while (record != null && record.blockNumber < MIN_WARM_BLOCK_HEIGHT);
         return record;
     }
 

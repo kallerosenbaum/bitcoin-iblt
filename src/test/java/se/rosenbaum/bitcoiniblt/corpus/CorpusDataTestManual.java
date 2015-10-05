@@ -1,5 +1,6 @@
 package se.rosenbaum.bitcoiniblt.corpus;
 
+import org.bitcoinj.core.Block;
 import org.bitcoinj.core.Sha256Hash;
 import org.bitcoinj.core.Transaction;
 import org.junit.Before;
@@ -20,9 +21,13 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.io.Writer;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +38,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
 
     private CorpusData corpusStats;
     private File testFileDir;
+    private File testResultDir;
 
     @Before
     public void setup() {
@@ -49,80 +55,21 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
 
         this.corpusStats = new CorpusData(new File(corpusHomePath));
         MAINNET_BLOCK = CorpusData.HIGHEST_BLOCK_HASH;
+        try {
+            corpusStats.calculateStatistics();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        blockCount = corpusStats.blockCount;
 
         testFileDir = new File(tempDirectory, "corpustestfiles");
         testFileDir.mkdirs();
+        testResultDir = new File(tempDirectory, "corpustestresults");
+        testResultDir.mkdirs();
     }
-
-    @Test
-    public void testAU() throws IOException {
-        RecordInputStream recordInputStream = corpusStats.getRecordInputStream(CorpusData.Node.AU);
-        Record record = recordInputStream.readRecord();
-        while (record != null) {
-            System.out.println(record.toString());
-            record = recordInputStream.readRecord();
-        }
-    }
-
-    @Test
-    public void testAUListBlocks() throws IOException {
-        RecordInputStream recordInputStream = corpusStats.getRecordInputStream(CorpusData.Node.AU);
-        Record record = recordInputStream.readRecord();
-        while (record != null) {
-            if (Type.COINBASE == record.type) {
-                System.out.println(record.toString());
-            }
-            record = recordInputStream.readRecord();
-        }
-    }
-
-    /**
-     Each record either reflects a new TX we accepted into the mempool from
-     the network, OR the relative state of the mempool when a new block
-     came in:
-
-     [4-byte:timestamp] [1 byte:type] [3-byte:block number] [32-byte:txid]
-
-     Where type is:
-     1. INCOMING_TX: a new transaction added to the mempool, block number is 0.
-     2. COINBASE: a coinbase transaction (ie. we didn't know this one)
-     3. UNKNOWN: a transaction was in the new block, and we didn't know about it.
-     4. KNOWN: a transaction was in the new block, and our mempool.
-     5. MEMPOOL_ONLY: a transaction was in the mempool, but not the block.
-
-     The ordering is:
-     1. Zero or more INCOMING_TX.
-     2. A COINBASE tx.
-     3. Zero or more UNKNOWN and KNOWN txs, in any order.
-     4. Zero or more MEMPOOL_ONLY txs.
-
-     You can simply uncompress the corpora and load them directly into C
-     arrays.  See example/simple-analysis.c.
-
-     */
-
-    /*
-    1. Collect all extras (not coinbases) for all blocks and nodes from corpus. Calculate the average extras, E, over the remaining.
-    2. Calculate the average tx rate, R, over the corpus. Sum the number of transactions in all blocks and divide it with the data collection period in seconds.
-    3. Now calculate the "extras per tx rate", E/R.
-    4. Absents, A, is calculated from E and the ratio extras/absent
-    5. Assume that E/R is constant and that the extras/absent ratio holds for all tx rates.
-    */
-    @Test
-    public void testExtrasPerTxRate() throws IOException {
-        corpusStats.calculateStatistics();
-
-        System.out.println("Average transaction rate  : " + corpusStats.txRate);
-        System.out.println("Average extras per block  : " + corpusStats.averageExtrasPerBlock);
-        System.out.println("Average extras per tx rate: " + corpusStats.extrasPerTxRate);
-    }
-
 
     @Test
     public void testFactor1() throws IOException {
-        corpusStats.calculateStatistics();
-        blockCount = corpusStats.blockCount;
-
         int factor = 1;
         int sampleCount = 1000;
 
@@ -155,39 +102,245 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
         printer.finish();
     }
 
-
-
     @Test
-    public void testFromTestFile() throws IOException {
+    public void testFromTestFiles() throws IOException {
         int cellCount = 300;
 
         TestFileTestConfigGenerator configGenerator = null;
         for (int factor : new int[] {1, 10, 100, 1000}) {
             FailureProbabilityPrinter printer = new IBLTSizeVsFailureProbabilityPrinter(tempDirectory);
             if (factor > 1) {
-                cellCount = configGenerator.getCellCount() * 10;
+                cellCount = configGenerator.getCellCount() * 9;
             }
             configGenerator = new TestFileTestConfigGenerator(getFile(factor), 3, 8, 64, 4, cellCount);
 
-            Interval interval = new Interval(0, configGenerator.getCellCount());
-            while (true) {
-                ResultStats result = testFailureProbability(printer, configGenerator);
-                printer.addResult(configGenerator, result);
-                if (result.getFailureProbability() < 0.05) {
-                    interval.setHigh(configGenerator.getCellCount());
-                } else {
+            configGenerator = calculate5percent(printer, getFile(factor), configGenerator, factor);
+        }
+    }
+
+    @Test
+    public void testFromTestFile() throws IOException {
+        int cellCount = 6000;
+        int factor = 100;
+        TestFileTestConfigGenerator configGenerator;
+
+        FailureProbabilityPrinter printer = new IBLTSizeVsFailureProbabilityPrinter(tempDirectory);
+        configGenerator = new TestFileTestConfigGenerator(getFile(factor), 3, 8, 64, 4, cellCount);
+
+        calculate5percent(printer, getFile(factor), configGenerator, factor);
+    }
+
+    @Test
+    public void testFromRealDataFile() throws IOException {
+        int cellCount = 600;
+        File testFile = new File(testFileDir, "test-real.txt");
+
+        FailureProbabilityPrinter printer = new IBLTSizeVsFailureProbabilityPrinter(tempDirectory);
+        TestFileTestConfigGenerator configGenerator = new TestFileTestConfigGenerator(testFile, 3, 8, 64, 4, cellCount);
+
+        calculate5percent(printer, testFile, configGenerator, -1);
+    }
+
+    private TestFileTestConfigGenerator calculate5percent(FailureProbabilityPrinter printer, File testFile, TestFileTestConfigGenerator configGenerator, int factor) throws IOException {
+        Interval interval = new Interval(0, configGenerator.getCellCount());
+        ResultStats closestResult = null;
+        TestFileTestConfigGenerator closestTestConfig = null;
+        while (true) {
+            ResultStats result = testFailureProbability(printer, configGenerator);
+            printer.addResult(configGenerator, result);
+            if (result.getFailureProbability() <= 0.05) {
+                if (result.getFailureProbability() == 0.05) {
                     interval.setLow(configGenerator.getCellCount());
                 }
-                configGenerator = new TestFileTestConfigGenerator(getFile(factor), 3, 8, 64, 4, interval.nextValue(configGenerator));
+                interval.setHigh(configGenerator.getCellCount());
+                closestResult = result;
+                closestTestConfig = configGenerator;
+            } else {
+                interval.setLow(configGenerator.getCellCount());
+            }
+            configGenerator = new TestFileTestConfigGenerator(testFile, configGenerator.getHashFunctionCount(),
+                    configGenerator.getKeySize(), configGenerator.getValueSize(), configGenerator.getKeyHashSize(),
+                    interval.nextValue(configGenerator));
 
-                if (!interval.isInsideInterval(configGenerator.getCellCount())) {
-                    break;
+            if (!interval.isInsideInterval(configGenerator.getCellCount())) {
+                configGenerator.setCellCount(interval.getHigh());
+                break;
+            }
+        }
+        if (factor == -1) {
+            printTestResultFile(closestTestConfig, closestResult, testFile);
+        } else {
+            printTestResultFile(closestTestConfig, closestResult, factor, testFile);
+        }
+        printer.finish();
+        return closestTestConfig;
+    }
+
+
+    @Test
+    public void testGenerateTestFileFactor1_10_100_1000() throws IOException {
+        int sampleCount = 1000;
+
+        for (int i = 0; i < 4; i++) {
+            createTestFile(sampleCount, i);
+        }
+    }
+
+    @Test
+    public void testFindPercentilesOfExtras() throws IOException {
+        int averageExtras = (int) Math.ceil(corpusStats.averageExtrasPerBlock);
+        int countBelowEqualAverageExtras = 0;
+        int countMoreThanAverageExtras = 0;
+        List<Integer> unknowns = new ArrayList<Integer>();
+        for (CorpusData.Node node : CorpusData.Node.values()) {
+            AverageExtrasPercentile handler = new AverageExtrasPercentile();
+            corpusStats.getStats(node, handler);
+            blockCount += handler.blocks.size();
+
+            for (IntPair intPair : handler.blocks.values()) {
+                unknowns.add(intPair.unknowns);
+                if (intPair.unknowns <= averageExtras) {
+                    countBelowEqualAverageExtras++;
+                } else {
+                    countMoreThanAverageExtras++;
                 }
             }
-            printer.finish();
         }
 
+        //  processBlocks(CorpusData.HIGHEST_BLOCK_HASH, 720, )
+   /*
+    1. Collect all extras (not coinbases) for all blocks and nodes from corpus. Calculate the average extras, E, over the remaining.
+    2. Calculate the average tx rate, R, over the corpus. Sum the number of transactions in all blocks and divide it with the data collection period in seconds.
+    3. Now calculate the "extras per tx rate", E/R.
+    4. Absents, A, is calculated from E and the ratio extras/absent
+    5. Assume that E/R is constant and that the extras/absent ratio holds for all tx rates.
+    */
 
+        System.out.println("Assumed extras/absents: 1/1");
+
+        System.out.println("Number of AU blocks: " + corpusStats.blockCount);
+        System.out.println("Exact avg extras   : " + corpusStats.averageExtrasPerBlock);
+        System.out.println("Ceil of extras, E  : " + averageExtras);
+        System.out.println("Avg tx rate, R     : " + corpusStats.txRate);
+        System.out.println("Avg E/R            : " + corpusStats.extrasPerTxRate);
+
+        System.out.println("Count <= E         : " + countBelowEqualAverageExtras);
+        System.out.println("Count >  E         : " + countMoreThanAverageExtras);
+        System.out.println("Percentage below   : " + 100 * countBelowEqualAverageExtras / (countBelowEqualAverageExtras + countMoreThanAverageExtras));
+
+        Collections.sort(unknowns);
+        System.out.println("Rough percentiles:");
+        int size = unknowns.size();
+        for (int i = 1; i <= 9; i++) {
+            int percent = 10*i;
+            System.out.println(percent + "% has <= " + unknowns.get(size * i/10 - 1) + " extras");
+        }
+        for (int i = 1; i <= 10; i++) {
+            int percent = 90 + i;
+            System.out.println(percent + "% has <= " + unknowns.get(size * (90 + i) / 100 - 1) + " extras");
+        }
+    }
+
+    @Test
+    public void createTestFileMimicCorpus() throws IOException {
+        FileWriter fileWriter = new FileWriter(new File(testFileDir, "test-real.txt"));
+        final TestFilePrinter testFilePrinter = new TestFilePrinter(fileWriter);
+
+        final List<String> extra = new ArrayList<String>();
+        final List<String> absent = new ArrayList<String>();
+
+
+        corpusStats.getStats(CorpusData.Node.AU, new CorpusData.RecordHandler() {
+            boolean firstBlock = true;
+
+            public void handle(Record record) {
+                if (record.type == Type.COINBASE) {
+                    if (!firstBlock) {
+                        while (absent.size() < extra.size()) {
+                            List<Transaction> randomTransactions = getRandomTransactions(extra.size() - absent.size(), false);
+                            for (Transaction randomTransaction : randomTransactions) {
+                                String hashAsString = randomTransaction.getHashAsString();
+                                if (!absent.contains(hashAsString)) {
+                                    absent.add(hashAsString);
+                                }
+                            }
+                        }
+                        testFilePrinter.writeTransactions(extra, absent);
+                        extra.clear();
+                        absent.clear();
+                    } else {
+                        firstBlock = false;
+                    }
+                } else if (record.type == Type.UNKNOWN) {
+                    extra.add(new Sha256Hash(record.txid).toString());
+                } else if (record.type == Type.MEMPOOL_ONLY) {
+                    if (absent.size() < extra.size()) {
+                        // Fill up with made up absent transactions, by taking equally many from MEMPOOL_ONLY
+                        // as there are extra.
+                        Sha256Hash sha256Hash = new Sha256Hash(record.txid);
+                        try {
+                            if (getTransaction(sha256Hash) != null) {
+                                absent.add(sha256Hash.toString());
+                            }
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
+            }
+        });
+
+        testFilePrinter.writeTransactions(extra, absent);
+        fileWriter.close();
+    }
+
+    private int averageBlockSize() {
+        int totalBlockSize = 0;
+        Block block = getBlock(new Sha256Hash(MAINNET_BLOCK));
+        for (int i = 1; i < corpusStats.blockCount; i++) {
+            totalBlockSize += block.getOptimalEncodingMessageSize();
+            block = getBlock(block.getPrevBlockHash());
+        }
+        return totalBlockSize / corpusStats.blockCount;
+    }
+
+    private void printTestResultFile(TestConfig testConfig, ResultStats result, File inputFile) throws IOException {
+        File resultFile = getResultFile("test-result-real");
+        PrintWriter out = new PrintWriter(new FileWriter(resultFile));
+        out.println("Input file                    : " + inputFile.getName());
+        out.println("Average block size [Bytes]    : " + averageBlockSize());
+        out.println("Average tx count per block    : " + (corpusStats.txCount / corpusStats.blockCount));
+        printCommon(testConfig, result, out);
+        out.flush();
+        out.close();
+    }
+
+    private void printTestResultFile(TestConfig testConfig, ResultStats result, int factor, File inputFile) throws IOException {
+        File resultFile = getResultFile("test-result-factor-" + factor);
+        PrintWriter out = new PrintWriter(new FileWriter(resultFile));
+        out.println("Input file                    : " + inputFile.getName());
+        out.println("Estimated block size [Bytes]  : " + averageBlockSize() * factor);
+        out.println("Estimated tx count per block  : " + (corpusStats.txCount / corpusStats.blockCount) * factor);
+        out.println("Extra tx                      : " + testConfig.getExtraTxCount());
+        out.println("Absent tx                     : " + testConfig.getAbsentTxCount());
+        printCommon(testConfig, result, out);
+        out.flush();
+        out.close();
+    }
+
+    private void printCommon(TestConfig testConfig, ResultStats result, PrintWriter out) {
+        out.println("Sample count                  : " + (result.getFailures() + result.getSuccesses()));
+        out.println("IBLT size for 5% probability  : " + testConfig.getIbltSize());
+        out.println("Cell count for 5% probability : " + testConfig.getCellCount());
+        out.println("Hash functions                : " + testConfig.getHashFunctionCount());
+        out.println("Key size                      : " + testConfig.getKeySize());
+        out.println("Value size                    : " + testConfig.getValueSize());
+        out.println("KeyHashSize                   : " + testConfig.getKeyHashSize());
+    }
+
+    private File getResultFile(String prefix) {
+        DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd-HHmmss");
+        return new File(testResultDir, prefix + "-" + dateFormat.format(new Date()) + ".txt");
     }
 
     protected ResultStats testFailureProbability(FailureProbabilityPrinter printer, TestFileTestConfigGenerator configGenerator) throws IOException {
@@ -214,10 +367,10 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
         }
 
         private void printTransactionSets(TransactionSets sets) throws IOException {
-            writer.write("absent:");
-            writeTransactions(sets.getReceiversTransactions());
             writer.write("extra:");
             writeTransactions(sets.getSendersTransactions());
+            writer.write("absent:");
+            writeTransactions(sets.getReceiversTransactions());
         }
 
         private void writeTransactions(List<Transaction> transactions) throws IOException {
@@ -231,16 +384,28 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
             }
             writer.write("\n");
         }
-    }
 
-    @Test
-    public void testGenerateTestFileFactor1_10_100_1000() throws IOException {
-        corpusStats.calculateStatistics();
-        blockCount = corpusStats.blockCount;
-        int sampleCount = 1000;
+        private void writeTransactions(List<String> extra, List<String> absent) {
+            try {
+                writer.write("extra:");
+                writeTransactionStrings(extra);
+                writer.write("absent:");
+                writeTransactionStrings(absent);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
-        for (int i = 0; i < 4; i++) {
-            createTestFile(sampleCount, i);
+        private void writeTransactionStrings(List<String> transactions) throws IOException {
+            boolean first = true;
+            for (String transaction : transactions) {
+                if (!first) {
+                    writer.write(",");
+                }
+                first = false;
+                writer.write(transaction);
+            }
+            writer.write("\n");
         }
     }
 
@@ -265,53 +430,9 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
                 currentBlock.knowns++;
             }
         }
-
-
     }
 
-    @Test
-    public void testFindPercentilesOfExtras() throws IOException {
-        corpusStats.calculateStatistics();
-        int averageExtras = (int) Math.ceil(corpusStats.averageExtrasPerBlock);
-        int countBelowEqualAverageExtras = 0;
-        int countMoreThanAverageExtras = 0;
-        List<Integer> unknowns = new ArrayList<Integer>();
-        for (CorpusData.Node node : CorpusData.Node.values()) {
-            AverageExtrasPercentile handler = new AverageExtrasPercentile();
-            corpusStats.getStats(node, handler);
-            blockCount += handler.blocks.size();
 
-            for (IntPair intPair : handler.blocks.values()) {
-                unknowns.add(intPair.unknowns);
-                if (intPair.unknowns > 0 ) {
-                    System.out.println("Unknowns: " + intPair.unknowns);
-                }
-                if (intPair.unknowns <= averageExtras) {
-                    countBelowEqualAverageExtras++;
-                } else {
-                    countMoreThanAverageExtras++;
-                }
-            }
-        }
-
-        System.out.println("Exact avg extras:" + corpusStats.averageExtrasPerBlock);
-        System.out.println("Ceil of extras  :" + averageExtras);
-        System.out.println("Count <= average: " + countBelowEqualAverageExtras);
-        System.out.println("Count >  average: " + countMoreThanAverageExtras);
-        System.out.println("Percentage below: " + 100 * countBelowEqualAverageExtras / (countBelowEqualAverageExtras + countMoreThanAverageExtras));
-
-        Collections.sort(unknowns);
-        System.out.println("Rough percentiles:");
-        int size = unknowns.size();
-        for (int i = 1; i <= 9; i++) {
-            int percent = 10*i;
-            System.out.println(percent + "% has <= " + unknowns.get(size * i/10 - 1) + " extras");
-        }
-        for (int i = 1; i <= 10; i++) {
-            int percent = 90 + i;
-            System.out.println(percent + "% has <= " + unknowns.get(size * (90 + i) / 100 - 1) + " extras");
-        }
-    }
 
     private void createTestFile(long sampleCount, long factorExponent) throws IOException {
         int factor = (int)Math.pow(10, factorExponent);
@@ -362,12 +483,12 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
                 TransactionSets transactionSets = new TransactionSets();
                 transactionSets.setSendersTransactions(new ArrayList<Transaction>());
                 transactionSets.setReceiversTransactions(new ArrayList<Transaction>());
-                line = line.substring("absent:".length());
-                addTransactionsToList(line, transactionSets.getReceiversTransactions());
-
-                line = fileReader.readLine();
                 line = line.substring("extra:".length());
                 addTransactionsToList(line, transactionSets.getSendersTransactions());
+
+                line = fileReader.readLine();
+                line = line.substring("absent:".length());
+                addTransactionsToList(line, transactionSets.getReceiversTransactions());
                 return transactionSets;
             } catch (IOException e) {
                 throw new RuntimeException(e);

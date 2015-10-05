@@ -266,6 +266,15 @@ public abstract class ClientCoderTest extends CoderTest {
         }
     }
 
+    protected void processBlocks(String startBlockHash, int count, BlockProcessor processor) {
+        Block block = getBlock(new Sha256Hash(startBlockHash));
+        int processedBlocks = 0;
+        while (block != null && processedBlocks < count) {
+            processor.process(block);
+            block = getBlock(block.getPrevBlockHash());
+        }
+    }
+
     protected void processTransactions(String startBlockHash, int count, TransactionProcessor processor) {
         Sha256Hash blockHash = new Sha256Hash(startBlockHash);
         Block currentBlock = getBlock(blockHash);

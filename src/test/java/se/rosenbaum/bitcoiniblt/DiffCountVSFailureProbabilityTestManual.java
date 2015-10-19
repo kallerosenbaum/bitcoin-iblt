@@ -2,7 +2,7 @@ package se.rosenbaum.bitcoiniblt;
 
 import org.junit.Test;
 import se.rosenbaum.bitcoiniblt.printer.DiffCountVSFailureProbabilityPrinter;
-import se.rosenbaum.bitcoiniblt.util.ResultStats;
+import se.rosenbaum.bitcoiniblt.util.AggregateResultStats;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
 
 import java.io.IOException;
@@ -23,8 +23,8 @@ public class DiffCountVSFailureProbabilityTestManual extends BlockStatsClientCod
             config.setExtraTxCount(halfDiffs);
             config.setAbsentTxCount(halfDiffs);
 
-//            ResultStats result = testFailureProbability(printer, config, 100);
-            ResultStats result = testFailureProbability(printer, config, 1000);
+//            AggregateResultStats result = testFailureProbability(printer, config, 100);
+            AggregateResultStats result = testFailureProbability(printer, config, 1000);
             printer.addResult(config, result);
         }
         printer.finish();
@@ -51,8 +51,8 @@ public class DiffCountVSFailureProbabilityTestManual extends BlockStatsClientCod
             config.setExtraTxCount(halfDiffs);
             config.setAbsentTxCount(halfDiffs);
 
-//            ResultStats result = testFailureProbability(printer, config, 100);
-            ResultStats result = testFailureProbability(printer, config, i < 1 ? 100000 : i < 3 ? 10000 : 1000);
+//            AggregateResultStats result = testFailureProbability(printer, config, 100);
+            AggregateResultStats result = testFailureProbability(printer, config, i < 1 ? 100000 : i < 3 ? 10000 : 1000);
             printer.addResult(config, result);
         }
     }

@@ -1,24 +1,12 @@
 package se.rosenbaum.bitcoiniblt.printer;
 
-import org.jfree.chart.ChartFactory;
-import org.jfree.chart.JFreeChart;
-import org.jfree.chart.axis.LogarithmicAxis;
-import org.jfree.chart.plot.PlotOrientation;
-import org.jfree.chart.plot.XYPlot;
-import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
-import org.jfree.data.xy.DefaultTableXYDataset;
-import org.jfree.data.xy.XYSeries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.rosenbaum.bitcoiniblt.util.ResultStats;
+import se.rosenbaum.bitcoiniblt.util.AggregateResultStats;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,9 +21,9 @@ public class CellCountVSFailureProbabilityPrinter extends FailureProbabilityPrin
     }
 
     @Override
-    protected void addDataPoint(TestConfig config, ResultStats resultStats) {
+    protected void addDataPoint(TestConfig config, AggregateResultStats aggregateResultStats) {
         int diffs = config.getAbsentTxCount() + config.getExtraTxCount();
-        DataPoint dataPoint = new DataPoint(config.getCellCount(), resultStats.getFailureProbability());
+        DataPoint dataPoint = new DataPoint(config.getCellCount(), aggregateResultStats.getFailureProbability());
         List<DataPoint> list = dataPointLists.get(diffs);
         if (list == null) {
             list = new ArrayList<DataPoint>();

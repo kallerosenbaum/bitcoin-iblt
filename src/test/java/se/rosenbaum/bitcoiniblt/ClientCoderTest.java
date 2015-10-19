@@ -216,9 +216,7 @@ public abstract class ClientCoderTest extends CoderTest {
     private Transaction getRandomTransaction(boolean coinbase) {
 
         assertTrue(blockCount <= blockHashes.length);
-        if (random == null) {
-            random = new Random();
-        }
+        Random random = getRandom();
         int blockIndex = random.nextInt(blockCount);
         Block block = getBlock(blockHashes[blockIndex]);
         while (!coinbase && block.getTransactions().size() == 1) {
@@ -227,6 +225,13 @@ public abstract class ClientCoderTest extends CoderTest {
         }
         int txIndex = coinbase ? 0 : random.nextInt(block.getTransactions().size() - 1) + 1;
         return block.getTransactions().get(txIndex);
+    }
+
+    private Random getRandom() {
+        if (random == null) {
+            random = new Random();
+        }
+        return random;
     }
 
     protected List<Transaction> getRandomTransactions(int transactionCount, boolean includeCoinbase) {
@@ -344,5 +349,6 @@ public abstract class ClientCoderTest extends CoderTest {
         public TransactionSets createTransactionSets() {
             return ClientCoderTest.this.createTransactionSets(getTxCount(), getExtraTxCount(), getAbsentTxCount(), isRandomTxSelection);
         }
+
     }
 }

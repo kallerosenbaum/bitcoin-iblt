@@ -28,7 +28,7 @@
             <groupId>org.bitcoinj</groupId>
             <artifactId>bitcoinj-core</artifactId>
             <version>${bitcoinj.version}</version>
-            <scope>compile</scope>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

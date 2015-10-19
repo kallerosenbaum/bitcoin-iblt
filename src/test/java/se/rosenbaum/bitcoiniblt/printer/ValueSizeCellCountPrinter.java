@@ -7,8 +7,12 @@ import java.io.File;
 import java.io.IOException;
 
 public class ValueSizeCellCountPrinter extends IBLTSizeBlockStatsPrinter {
-    public ValueSizeCellCountPrinter(File tempDirectory, int dataPoints) throws IOException {
+
+    private String chartTitle = "";
+
+    public ValueSizeCellCountPrinter(File tempDirectory, int dataPoints, String chartTitle) throws IOException {
         super(tempDirectory, dataPoints);
+        this.chartTitle = chartTitle;
     }
 
     @Override
@@ -20,7 +24,7 @@ public class ValueSizeCellCountPrinter extends IBLTSizeBlockStatsPrinter {
 
     @Override
     protected void createImage() throws IOException {
-        createImage("value size [B]", "Minimum IBLT size [B]");
+        createImage("value size [B]", "Minimum IBLT size [B]", chartTitle);
     }
 
     @Override

@@ -11,8 +11,8 @@ import org.junit.Before;
 import se.rosenbaum.bitcoiniblt.bytearraydata.ByteArrayDataTransactionCoder;
 import se.rosenbaum.bitcoiniblt.bytearraydata.IBLTUtils;
 import se.rosenbaum.bitcoiniblt.printer.FailureProbabilityPrinter;
+import se.rosenbaum.bitcoiniblt.util.AggregateResultStats;
 import se.rosenbaum.bitcoiniblt.util.BlockStatsResult;
-import se.rosenbaum.bitcoiniblt.util.ResultStats;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
 import se.rosenbaum.bitcoiniblt.util.TransactionSets;
 import se.rosenbaum.iblt.IBLT;
@@ -38,7 +38,7 @@ public class BlockStatsClientCoderTest extends ClientCoderTest {
     }
 
     private void createBlockCoder(TestConfig config) {
-        TransactionCoder transactionCoder = new ByteArrayDataTransactionCoder(getParams(), salt, config.getKeySize(),
+        TransactionCoder transactionCoder = new ByteArrayDataTransactionCoder(getParams(), config.getSalt(), config.getKeySize(),
                 config.getValueSize());
         IBLT iblt = new IBLTUtils().createIblt(config.getCellCount(), config.getHashFunctionCount(), config.getKeySize(),
                 config.getValueSize(), config.getKeyHashSize());
@@ -46,7 +46,7 @@ public class BlockStatsClientCoderTest extends ClientCoderTest {
     }
 
     private void createBlockCoder(TestConfig config, IBLT iblt) {
-        TransactionCoder transactionCoder = new ByteArrayDataTransactionCoder(getParams(), salt, config.getKeySize(),
+        TransactionCoder transactionCoder = new ByteArrayDataTransactionCoder(getParams(), config.getSalt(), config.getKeySize(),
                 config.getValueSize());
         sut = new BlockCoder(iblt, transactionCoder, sorter);
     }
@@ -106,12 +106,12 @@ public class BlockStatsClientCoderTest extends ClientCoderTest {
         return MainNetParams.get();
     }
 
-    protected ResultStats testFailureProbability(FailureProbabilityPrinter printer, TestConfig config) throws IOException {
+    protected AggregateResultStats testFailureProbability(FailureProbabilityPrinter printer, TestConfig config) throws IOException {
         return testFailureProbability(printer, config, Integer.MAX_VALUE);
     }
 
-    protected ResultStats testFailureProbability(FailureProbabilityPrinter printer, TestConfig config, int sampleCount) throws IOException {
-        ResultStats stats = new ResultStats();
+    protected AggregateResultStats testFailureProbability(FailureProbabilityPrinter printer, TestConfig config, int sampleCount) throws IOException {
+        AggregateResultStats stats = new AggregateResultStats();
 
         for (int i = 0; i < sampleCount; i++) {
             BlockStatsResult result = testBlockStats(config);
@@ -119,7 +119,7 @@ public class BlockStatsClientCoderTest extends ClientCoderTest {
                 break;
             }
             stats.addSample(result);
-            if (i % 99 == 0 && i > 0) {
+            if (printer != null && i % 99 == 0 && i > 0) {
                 printer.logResult(config, stats);
             }
         }

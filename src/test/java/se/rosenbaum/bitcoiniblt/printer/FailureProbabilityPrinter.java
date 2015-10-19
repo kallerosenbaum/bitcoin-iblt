@@ -11,7 +11,7 @@ import org.jfree.data.xy.DefaultTableXYDataset;
 import org.jfree.data.xy.XYSeries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.rosenbaum.bitcoiniblt.util.ResultStats;
+import se.rosenbaum.bitcoiniblt.util.AggregateResultStats;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
 import se.rosenbaum.bitcoiniblt.util.TransactionSets;
 
@@ -39,19 +39,19 @@ public abstract class FailureProbabilityPrinter extends BlockStatsPrinter {
                 "keyHashSize [B],cellCount, IBLT size [B], total keyCount,total encTime,total decTime,failureCount,successCount,failureProbability\n");
     }
 
-    public void addResult(TestConfig config, ResultStats resultStats) {
-        addDataPoint(config, resultStats);
-        double failureProbability = (double)resultStats.getFailures() / (double)(resultStats.getFailures() + resultStats.getSuccesses());
+    public void addResult(TestConfig config, AggregateResultStats aggregateResultStats) {
+        addDataPoint(config, aggregateResultStats);
+        double failureProbability = (double) aggregateResultStats.getFailures() / (double)(aggregateResultStats.getFailures() + aggregateResultStats.getSuccesses());
         writer.printf(FORMAT, config.getTxCount(), config.getExtraTxCount(), config.getAbsentTxCount(), config.getHashFunctionCount(), config.getKeySize(),
-                config.getValueSize(), config.getKeyHashSize(), config.getCellCount(), config.getIbltSize(), resultStats.getTotalResidualKeyCount(), resultStats.getTotalEncodingTime(), resultStats.getTotalDecodingTime(),
-                resultStats.getFailures(), resultStats.getSuccesses(),
+                config.getValueSize(), config.getKeyHashSize(), config.getCellCount(), config.getIbltSize(), aggregateResultStats.getTotalResidualKeyCount(), aggregateResultStats.getTotalEncodingTime(), aggregateResultStats.getTotalDecodingTime(),
+                aggregateResultStats.getFailures(), aggregateResultStats.getSuccesses(),
                 failureProbability);
         writer.flush();
     }
 
-    protected abstract void addDataPoint(TestConfig config, ResultStats resultStats);
+    protected abstract void addDataPoint(TestConfig config, AggregateResultStats aggregateResultStats);
 
-    public void logResult(TestConfig config, ResultStats stats) {
+    public void logResult(TestConfig config, AggregateResultStats stats) {
         logger.info("CellCount: {}, successes: {}, failures: {}", config.getCellCount(),
                 stats.getSuccesses(), stats.getFailures());
     }
@@ -102,7 +102,7 @@ public abstract class FailureProbabilityPrinter extends BlockStatsPrinter {
         config.setValueSize(parseInt(tokenizer));
         config.setKeyHashSize(parseInt(tokenizer));
         config.setCellCount(parseInt(tokenizer));
-        ResultStats result = new ResultStats();
+        AggregateResultStats result = new AggregateResultStats();
         result.setTotalResidualKeyCount(parseInt(tokenizer));
         result.setTotalEncodingTime(parseInt(tokenizer));
         result.setTotalDecodingTime(parseInt(tokenizer));
@@ -128,7 +128,7 @@ public abstract class FailureProbabilityPrinter extends BlockStatsPrinter {
         config.setValueSize(parseInt(tokenizer));
         config.setKeyHashSize(parseInt(tokenizer));
         config.setCellCount(parseInt(tokenizer));
-        ResultStats result = new ResultStats();
+        AggregateResultStats result = new AggregateResultStats();
         int averageKeyCount = parseInt(tokenizer);
         int averageEncodingTime = parseInt(tokenizer);
         int averageDecodingTime = parseInt(tokenizer);

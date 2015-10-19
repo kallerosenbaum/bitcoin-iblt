@@ -2,7 +2,7 @@ package se.rosenbaum.bitcoiniblt.printer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.rosenbaum.bitcoiniblt.util.ResultStats;
+import se.rosenbaum.bitcoiniblt.util.AggregateResultStats;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
 
 import java.io.File;
@@ -19,8 +19,8 @@ public class IBLTSizeVsFailureProbabilityPrinter extends FailureProbabilityPrint
     }
 
     @Override
-    protected void addDataPoint(TestConfig config, ResultStats resultStats) {
-        DataPoint dataPoint = new DataPoint(config.getIbltSize(), resultStats.getFailureProbability());
+    protected void addDataPoint(TestConfig config, AggregateResultStats aggregateResultStats) {
+        DataPoint dataPoint = new DataPoint(config.getIbltSize(), aggregateResultStats.getFailureProbability());
         dataPoints.add(dataPoint);
     }
 

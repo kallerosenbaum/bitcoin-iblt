@@ -2,13 +2,12 @@ package se.rosenbaum.bitcoiniblt.printer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.rosenbaum.bitcoiniblt.util.ResultStats;
+import se.rosenbaum.bitcoiniblt.util.AggregateResultStats;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -22,9 +21,9 @@ public class DiffCountVSFailureProbabilityPrinter extends FailureProbabilityPrin
     }
 
     @Override
-    protected void addDataPoint(TestConfig config, ResultStats resultStats) {
+    protected void addDataPoint(TestConfig config, AggregateResultStats aggregateResultStats) {
         int diffs = config.getAbsentTxCount() + config.getExtraTxCount();
-        DataPoint dataPoint = new DataPoint(diffs, resultStats.getFailureProbability());
+        DataPoint dataPoint = new DataPoint(diffs, aggregateResultStats.getFailureProbability());
         String key = "k=" + config.getHashFunctionCount();
         List<DataPoint> list = dataPointLists.get(key);
         if (list == null) {

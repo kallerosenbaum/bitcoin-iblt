@@ -13,7 +13,7 @@ public class IBLTUtils {
         Cell[] cells = new Cell[numberOfCells];
         HashFunction hashFunction = new ByteArrayDataHashFunction(hashSumSize);
         for (int i = 0; i < numberOfCells; i++) {
-            cells[i] = new Cell(data(keySize), data(valueSize), data(hashSumSize), hashFunction);
+            cells[i] = new Cell(data(keySize), data(valueSize), data(hashSumSize), hashFunction, 0);
         }
         return cells;
     }

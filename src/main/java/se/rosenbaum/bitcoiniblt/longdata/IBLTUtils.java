@@ -11,7 +11,7 @@ public class IBLTUtils {
         Cell[] cells = new Cell[numberOfCells];
         LongDataHashFunction hashFunction = new LongDataHashFunction();
         for (int i = 0; i < numberOfCells; i++) {
-            cells[i] = new Cell(data(0), data(0), data(0), hashFunction);
+            cells[i] = new Cell(data(0), data(0), data(0), hashFunction, 0);
         }
         return cells;
     }

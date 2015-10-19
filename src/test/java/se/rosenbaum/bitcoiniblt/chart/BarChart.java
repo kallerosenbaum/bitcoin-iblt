@@ -21,12 +21,12 @@ public class BarChart {
         this.yCaption = yCaption;
     }
 
-    public BufferedImage getImage() {
+    public BufferedImage getImage(String title) {
         DefaultCategoryDataset dataSet = new DefaultCategoryDataset();
         for (int i = 0; i < xValues.length; i++) {
             dataSet.addValue(Integer.valueOf(yValues[i]), "apa", Integer.valueOf(xValues[i]));
         }
-        JFreeChart chart = ChartFactory.createBarChart("", xCaption, yCaption, dataSet, PlotOrientation.HORIZONTAL,
+        JFreeChart chart = ChartFactory.createBarChart(title, xCaption, yCaption, dataSet, PlotOrientation.HORIZONTAL,
                 false, false, false);
 
         return chart.createBufferedImage(600,400);

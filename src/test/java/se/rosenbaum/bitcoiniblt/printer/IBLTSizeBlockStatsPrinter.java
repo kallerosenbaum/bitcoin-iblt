@@ -15,7 +15,7 @@ import java.io.OutputStream;
  * Date: 10/30/14 7:19 PM
  */
 public abstract class IBLTSizeBlockStatsPrinter extends BlockStatsPrinter {
-    public static final String OUTPUT_FORMAT = "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n";
+    public static final String OUTPUT_FORMAT = "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n";
     public static final String LOGGER_FORMAT = "{},{},{},{},{},{},{},{},{},{}";
     int[] category;
     int[] yValues;
@@ -30,7 +30,7 @@ public abstract class IBLTSizeBlockStatsPrinter extends BlockStatsPrinter {
     }
 
     private void printHeader() {
-        writer.printf(OUTPUT_FORMAT, "txcount", "hashFunctionCount", "keySize [B]", "valueSize [B]", "keyHashSize [B]",
+        writer.printf(OUTPUT_FORMAT, "txcount", "extras", "absents", "hashFunctionCount", "keySize [B]", "valueSize [B]", "keyHashSize [B]",
                 "cellCount", "entryCount", "encodeTime [ms]", "decodeTime [ms]", "minIBLTSize [B]");
     }
 
@@ -42,7 +42,7 @@ public abstract class IBLTSizeBlockStatsPrinter extends BlockStatsPrinter {
     }
 
     public void addResult(TestConfig config, BlockStatsResult result) {
-        writer.printf(OUTPUT_FORMAT, config.getTxCount(), config.getHashFunctionCount(), config.getKeySize(),
+        writer.printf(OUTPUT_FORMAT, config.getTxCount(), config.getExtraTxCount(), config.getAbsentTxCount(), config.getHashFunctionCount(), config.getKeySize(),
                 config.getValueSize(), config.getKeyHashSize(),
                 config.getCellCount(), result.getResidualKeysCount(), result.getEncodingTime(),
                 result.getDecodingTime(), config.getIbltSize());
@@ -51,12 +51,12 @@ public abstract class IBLTSizeBlockStatsPrinter extends BlockStatsPrinter {
     }
 
     protected void createImage(String categoryCaption,
-                             String valueCaption) throws IOException {
+                               String valueCaption, String title) throws IOException {
         BarChart barChart = new BarChart(category, yValues, categoryCaption, valueCaption);
 
         OutputStream out = new FileOutputStream(getFile(".png"));
         try {
-            ImageIO.write(barChart.getImage(), "png", out);
+            ImageIO.write(barChart.getImage(title), "png", out);
         } catch (IOException e) {
             logger.error("Failed to write image.", e);
         }

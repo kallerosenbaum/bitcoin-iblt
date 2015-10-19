@@ -3,8 +3,7 @@ package se.rosenbaum.bitcoiniblt;
 import org.junit.Test;
 import se.rosenbaum.bitcoiniblt.printer.CellCountVSFailureProbabilityPrinter;
 import se.rosenbaum.bitcoiniblt.printer.FailureProbabilityPrinter;
-import se.rosenbaum.bitcoiniblt.util.BlockStatsResult;
-import se.rosenbaum.bitcoiniblt.util.ResultStats;
+import se.rosenbaum.bitcoiniblt.util.AggregateResultStats;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
 
 import java.io.IOException;
@@ -39,7 +38,7 @@ public class CellCountVSFailureProbabilityTestManual extends BlockStatsClientCod
         int cellCount = 3 * (absents / avgCellCountPerTx + extras);
 
         testConfig.setCellCountMultiple(cellCount);
-        ResultStats resultHighP = testFailureProbability(printer, testConfig, 10);
+        AggregateResultStats resultHighP = testFailureProbability(printer, testConfig, 10);
         while (resultHighP.getFailureProbability() < 1) {
             testConfig.setCellCountMultiple(testConfig.getCellCount() / 2);
             resultHighP = testFailureProbability(printer, testConfig, 10);
@@ -50,7 +49,7 @@ public class CellCountVSFailureProbabilityTestManual extends BlockStatsClientCod
         }
         TestConfig highConfig = new RandomTransactionsTestConfig(testConfig);
 
-        ResultStats resultLowP = testFailureProbability(printer, testConfig, 10);
+        AggregateResultStats resultLowP = testFailureProbability(printer, testConfig, 10);
         while (resultLowP.getFailureProbability() > 0) {
             testConfig.setCellCountMultiple(testConfig.getCellCount() + 50);
             resultLowP = testFailureProbability(printer, testConfig, 10);
@@ -86,7 +85,7 @@ public class CellCountVSFailureProbabilityTestManual extends BlockStatsClientCod
             for (int j = 0; j < 7; j++) {
                 config.setCellCountMultiple(min + step * j);
                 step = (int)(step * 1.4);
-                ResultStats result = testFailureProbability(printer, config, j > 3 ? 100000 : 10000);
+                AggregateResultStats result = testFailureProbability(printer, config, j > 3 ? 100000 : 10000);
                 printer.addResult(config, result);
             }
         }

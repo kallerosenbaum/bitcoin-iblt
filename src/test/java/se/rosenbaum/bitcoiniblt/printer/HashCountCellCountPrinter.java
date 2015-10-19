@@ -20,7 +20,7 @@ public class HashCountCellCountPrinter extends IBLTSizeBlockStatsPrinter {
 
     @Override
     protected void createImage() throws IOException {
-        createImage("hash function count", "Minimum IBLT size [bytes]");
+        createImage("hash function count", "Minimum IBLT size [bytes]", "Minimum decodable IBLT");
     }
 
     @Override

@@ -1,6 +1,6 @@
 package se.rosenbaum.bitcoiniblt.util;
 
-public class AggregateResultStats {
+public class AggregateResultStats extends BlockStatsResult {
     private int successes = 0;
     private int failures = 0;
     private int totalResidualKeyCount = 0;
@@ -47,6 +47,31 @@ public class AggregateResultStats {
 
     public void setSuccesses(int successes) {
         this.successes = successes;
+    }
+
+    @Override
+    public long getDecodingTime() {
+        return getTotalDecodingTime() / (failures+successes);
+    }
+
+    @Override
+    public long getEncodingTime() {
+        return getTotalEncodingTime() / (failures+successes);
+    }
+
+    @Override
+    public int getResidualKeysCount() {
+        return getTotalResidualKeyCount() / (failures+successes);
+    }
+
+    @Override
+    public int getTotalKeysCount() {
+        return super.getTotalKeysCount() / (failures+successes);
+    }
+
+    @Override
+    public boolean isSuccess() {
+        return true;
     }
 
     public void setFailures(int failures) {

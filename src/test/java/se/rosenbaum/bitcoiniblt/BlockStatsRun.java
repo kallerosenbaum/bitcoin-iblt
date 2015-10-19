@@ -4,6 +4,7 @@ import org.junit.Test;
 import se.rosenbaum.bitcoiniblt.printer.HashCountCellCountPrinter;
 import se.rosenbaum.bitcoiniblt.printer.IBLTSizeBlockStatsPrinter;
 import se.rosenbaum.bitcoiniblt.printer.ValueSizeCellCountPrinter;
+import se.rosenbaum.bitcoiniblt.util.AggregateResultStats;
 import se.rosenbaum.bitcoiniblt.util.BlockStatsResult;
 import se.rosenbaum.bitcoiniblt.util.Interval;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
@@ -56,7 +57,7 @@ public class BlockStatsRun extends BlockStatsClientCoderTest {
     @Test
     public void testHashFunctionCountVsCellCount() throws IOException {
         int cellCountStart = 8192 * 2 * 2 * 2 * 2;
-        TestConfig config = new RandomTransactionsTestConfig(50, 50, 50, 1, 8, 270, 4, cellCountStart, false);
+        TestConfig config = new RandomTransactionsTestConfig(50, 50, 50, 1, 8, 64, 4, cellCountStart, false);
 
         Interval interval = new Interval(0, config.getCellCount());
 
@@ -99,8 +100,8 @@ public class BlockStatsRun extends BlockStatsClientCoderTest {
         TestConfig config = new RandomTransactionsTestConfig(50, 50, 50, 4, 8, 8, 4, 32384, false);
         Interval interval = new Interval(0, config.getCellCount());
 
-        int[] category = new int[]{8, 16, 32, 64, 128, 256, 270, 280, 512, 1024, 2048};
-        IBLTSizeBlockStatsPrinter printer = new ValueSizeCellCountPrinter(tempDirectory, category.length);
+        int[] category = new int[]{8, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 256, 270, 280, 512};
+        IBLTSizeBlockStatsPrinter printer = new ValueSizeCellCountPrinter(tempDirectory, category.length, "Minimum decodable IBLT size, non-corpus");
 
         for (int i = 0; i < category.length; i++) {
             config.setValueSize(category[i]);
@@ -120,6 +121,8 @@ public class BlockStatsRun extends BlockStatsClientCoderTest {
                 if (!interval.isInsideInterval(config.getCellCount())) {
                     config.setCellCount(interval.getHigh());
                     printer.addResult(config, lastSuccessResult);
+                    config.setCellCount(config.getCellCount()*4);
+                    interval.setHigh(config.getCellCount());
                     interval.setLow(0);
                     break;
                 }
@@ -128,6 +131,51 @@ public class BlockStatsRun extends BlockStatsClientCoderTest {
         printer.finish();
     }
 
+    @Test
+    public void testValueSizesFor5PercentFailureProbabilityMultipleTimes() throws IOException {
+        for (int i = 0; i < 3; i++) {
+            testValueSizesFor5PercentFailureProbability();
+        }
+    }
+
+    @Test
+    public void testValueSizesFor5PercentFailureProbability() throws IOException {
+        int cellCount = 32385;
+        TestConfig config = new RandomTransactionsTestConfig(50, 50, 50, 3, 8, 8, 4, cellCount, true);
+
+        int[] category = new int[]{8, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 256, 270, 280, 512};
+        IBLTSizeBlockStatsPrinter valueSizeCellCountPrinter = new ValueSizeCellCountPrinter(tempDirectory, category.length, "IBLT size for 5% failure probability, non-corpus");
+
+        for (int i = 0; i < category.length; i++) {
+            config.setValueSize(category[i]);
+
+            Interval interval = new Interval(0, config.getCellCount());
+            AggregateResultStats closestResult = null;
+            TestConfig closestTestConfig = null;
+            while (true) {
+                AggregateResultStats result = testFailureProbability(null, config, 1000);
+                valueSizeCellCountPrinter.logResult(config, result);
+                if (result.getFailureProbability() <= 0.05) {
+                    if (result.getFailureProbability() == 0.05) {
+                        interval.setLow(config.getCellCount());
+                    }
+                    interval.setHigh(config.getCellCount());
+                    closestResult = result;
+                    closestTestConfig = new RandomTransactionsTestConfig(50, 50, 50, 3, 8, config.getValueSize(), 4, config.getCellCount(), false);
+                } else {
+                    interval.setLow(config.getCellCount());
+                }
+                config.setCellCount(interval.nextValue(config));
+
+                if (!interval.isInsideInterval(config.getCellCount())) {
+                    config.setCellCount(interval.getHigh()*2);
+                    break;
+                }
+            }
+            valueSizeCellCountPrinter.addResult(closestTestConfig, closestResult);
+        }
+        valueSizeCellCountPrinter.finish();
+    }
 
 
 }

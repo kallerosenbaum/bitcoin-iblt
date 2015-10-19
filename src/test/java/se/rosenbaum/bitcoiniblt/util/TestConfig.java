@@ -1,5 +1,7 @@
 package se.rosenbaum.bitcoiniblt.util;
 
+import java.util.Random;
+
 /**
 * User: kalle
 * Date: 10/29/14 8:26 PM
@@ -13,6 +15,7 @@ public abstract class TestConfig {
     private int valueSize;
     private int keyHashSize;
     private int cellCount;
+    private static final Random random = new Random();
 
     public TestConfig(int txCount, int extraTxCount, int absentTxCount, int hashFunctionCount, int keySize,
                       int valueSize, int keyHashSize, int cellCount) {
@@ -114,4 +117,10 @@ public abstract class TestConfig {
     }
 
     public abstract TransactionSets createTransactionSets();
+
+    public byte[] getSalt() {
+        byte[] salt = new byte[32];
+        random.nextBytes(salt);
+        return salt;
+    }
 }

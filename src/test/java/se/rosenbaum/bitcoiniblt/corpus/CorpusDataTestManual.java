@@ -6,11 +6,14 @@ import org.bitcoinj.core.Transaction;
 import org.junit.Before;
 import org.junit.Test;
 import se.rosenbaum.bitcoiniblt.BlockStatsClientCoderTest;
+import se.rosenbaum.bitcoiniblt.printer.CellCountVSFailureProbabilityPrinter;
 import se.rosenbaum.bitcoiniblt.printer.FailureProbabilityPrinter;
+import se.rosenbaum.bitcoiniblt.printer.IBLTSizeBlockStatsPrinter;
 import se.rosenbaum.bitcoiniblt.printer.IBLTSizeVsFailureProbabilityPrinter;
+import se.rosenbaum.bitcoiniblt.printer.ValueSizeCellCountPrinter;
+import se.rosenbaum.bitcoiniblt.util.AggregateResultStats;
 import se.rosenbaum.bitcoiniblt.util.BlockStatsResult;
 import se.rosenbaum.bitcoiniblt.util.Interval;
-import se.rosenbaum.bitcoiniblt.util.ResultStats;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
 import se.rosenbaum.bitcoiniblt.util.TransactionSets;
 
@@ -32,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Random;
 import java.util.StringTokenizer;
 
 public class CorpusDataTestManual extends BlockStatsClientCoderTest {
@@ -81,7 +85,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
 
         Interval interval = new Interval(0, testConfig.getCellCount());
         while (true) {
-            ResultStats result = testFailureProbability(printer, testConfig, sampleCount);
+            AggregateResultStats result = testFailureProbability(printer, testConfig, sampleCount);
 
             if (result.getFailureProbability() > 0.02 && result.getFailureProbability() < 0.1) {
                 printer.addResult(testConfig, result);
@@ -131,6 +135,57 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
     }
 
     @Test
+    public void testValueSizeFor5PercentFailureProbabilityFromRealDataFileMultipleTimes() throws IOException {
+        for (int i = 0; i < 3; i++) {
+            testValueSizeFor5PercentFailureProbabilityFromRealDataFile();
+        }
+    }
+
+        @Test
+    public void testValueSizeFor5PercentFailureProbabilityFromRealDataFile() throws IOException {
+        int cellCount = 32385;
+        File testFile = new File(testFileDir, "test-real.txt");
+        TestFileTestConfigGenerator configGenerator = new TestFileTestConfigGenerator(testFile, 3, 8, 64, 4, cellCount);
+
+        int[] category = new int[]{8, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 256, 270, 280, 512};
+        IBLTSizeBlockStatsPrinter valueSizeCellCountPrinter = new ValueSizeCellCountPrinter(tempDirectory, category.length, "IBLT size for 5% failure probability, corpus-au");
+
+        for (int i = 0; i < category.length; i++) {
+            FailureProbabilityPrinter failureProbabilityPrinter = new CellCountVSFailureProbabilityPrinter(tempDirectory);
+            configGenerator.setValueSize(category[i]);
+
+            Interval interval = new Interval(0, configGenerator.getCellCount());
+            AggregateResultStats closestResult = null;
+            TestFileTestConfigGenerator closestTestConfig = null;
+            while (true) {
+                AggregateResultStats result = testFailureProbability(failureProbabilityPrinter, configGenerator);
+                failureProbabilityPrinter.addResult(configGenerator, result);
+                if (result.getFailureProbability() <= 0.05) {
+                    if (result.getFailureProbability() == 0.05) {
+                        interval.setLow(configGenerator.getCellCount());
+                    }
+                    interval.setHigh(configGenerator.getCellCount());
+                    closestResult = result;
+                    closestTestConfig = configGenerator;
+                } else {
+                    interval.setLow(configGenerator.getCellCount());
+                }
+                configGenerator = new TestFileTestConfigGenerator(testFile, configGenerator.getHashFunctionCount(),
+                        configGenerator.getKeySize(), configGenerator.getValueSize(), configGenerator.getKeyHashSize(),
+                        interval.nextValue(configGenerator));
+
+                if (!interval.isInsideInterval(configGenerator.getCellCount())) {
+                    configGenerator.setCellCount(interval.getHigh()*2);
+                    break;
+                }
+            }
+            failureProbabilityPrinter.finish();
+            valueSizeCellCountPrinter.addResult(closestTestConfig, closestResult);
+        }
+        valueSizeCellCountPrinter.finish();
+    }
+
+    @Test
     public void testFromRealDataFile() throws IOException {
         int cellCount = 600;
         File testFile = new File(testFileDir, "test-real.txt");
@@ -143,10 +198,10 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
 
     private TestFileTestConfigGenerator calculate5percent(FailureProbabilityPrinter printer, File testFile, TestFileTestConfigGenerator configGenerator, int factor) throws IOException {
         Interval interval = new Interval(0, configGenerator.getCellCount());
-        ResultStats closestResult = null;
+        AggregateResultStats closestResult = null;
         TestFileTestConfigGenerator closestTestConfig = null;
         while (true) {
-            ResultStats result = testFailureProbability(printer, configGenerator);
+            AggregateResultStats result = testFailureProbability(printer, configGenerator);
             printer.addResult(configGenerator, result);
             if (result.getFailureProbability() <= 0.05) {
                 if (result.getFailureProbability() == 0.05) {
@@ -304,7 +359,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
         return totalBlockSize / corpusStats.blockCount;
     }
 
-    private void printTestResultFile(TestConfig testConfig, ResultStats result, File inputFile) throws IOException {
+    private void printTestResultFile(TestConfig testConfig, AggregateResultStats result, File inputFile) throws IOException {
         File resultFile = getResultFile("test-result-real");
         PrintWriter out = new PrintWriter(new FileWriter(resultFile));
         out.println("Input file                    : " + inputFile.getName());
@@ -315,7 +370,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
         out.close();
     }
 
-    private void printTestResultFile(TestConfig testConfig, ResultStats result, int factor, File inputFile) throws IOException {
+    private void printTestResultFile(TestConfig testConfig, AggregateResultStats result, int factor, File inputFile) throws IOException {
         File resultFile = getResultFile("test-result-factor-" + factor);
         PrintWriter out = new PrintWriter(new FileWriter(resultFile));
         out.println("Input file                    : " + inputFile.getName());
@@ -328,7 +383,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
         out.close();
     }
 
-    private void printCommon(TestConfig testConfig, ResultStats result, PrintWriter out) {
+    private void printCommon(TestConfig testConfig, AggregateResultStats result, PrintWriter out) {
         out.println("Sample count                  : " + (result.getFailures() + result.getSuccesses()));
         out.println("IBLT size for 5% probability  : " + testConfig.getIbltSize());
         out.println("Cell count for 5% probability : " + testConfig.getCellCount());
@@ -343,8 +398,8 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
         return new File(testResultDir, prefix + "-" + dateFormat.format(new Date()) + ".txt");
     }
 
-    protected ResultStats testFailureProbability(FailureProbabilityPrinter printer, TestFileTestConfigGenerator configGenerator) throws IOException {
-        ResultStats stats = new ResultStats();
+    protected AggregateResultStats testFailureProbability(FailureProbabilityPrinter printer, TestFileTestConfigGenerator configGenerator) throws IOException {
+        AggregateResultStats stats = new AggregateResultStats();
 
         TestConfig config = configGenerator.createNextTestConfig();
         int i = 1;
@@ -457,7 +512,6 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
     private class TestFileTestConfigGenerator extends TestConfig {
         private final BufferedReader fileReader;
 
-
         public TestFileTestConfigGenerator(File file, int hashFunctionCount, int keySize, int valueSize, int keyHashSize, int cellCount) throws FileNotFoundException {
             super(0, 0, 0, hashFunctionCount, keySize, valueSize, keyHashSize, cellCount);
             this.fileReader = new BufferedReader(new FileReader(file));
@@ -511,6 +565,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
         public TransactionSets createTransactionSets() {
             return null;
         }
+
     }
 
     private class TransactionSetsTestConfig extends TestConfig {
@@ -546,4 +601,6 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest {
             return transactionSets;
         }
     }
+
+
 }

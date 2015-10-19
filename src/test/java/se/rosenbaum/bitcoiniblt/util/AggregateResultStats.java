@@ -1,6 +1,6 @@
 package se.rosenbaum.bitcoiniblt.util;
 
-public class ResultStats {
+public class AggregateResultStats {
     private int successes = 0;
     private int failures = 0;
     private int totalResidualKeyCount = 0;

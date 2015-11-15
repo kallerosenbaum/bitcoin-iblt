@@ -16,10 +16,7 @@ import se.rosenbaum.bitcoiniblt.util.TestConfig;
 import se.rosenbaum.bitcoiniblt.util.TransactionCollectorProcessor;
 import se.rosenbaum.bitcoiniblt.util.TransactionProcessor;
 import se.rosenbaum.bitcoiniblt.util.TransactionSets;
-import se.rosenbaum.iblt.data.ByteArrayData;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -32,6 +29,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -70,11 +68,24 @@ public abstract class ClientCoderTest extends CoderTest {
     private Map<Sha256Hash, Block> blockCache = new HashMap<Sha256Hash, Block>();
     protected int blockCount = 1000;
 
+    protected Properties testProps;
+
     @Before
     public void setupWallet() throws ExecutionException, InterruptedException, BlockStoreException {
         salt = new byte[32];
         salt[14] = -45; // set something other than 0.
-        String tmpDir = System.getProperty("iblt.output.dir", ".");
+        testProps = new Properties();
+        InputStream is = ClassLoader.getSystemResourceAsStream("junittests.properties");
+        try {
+            testProps.load(is);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        String tmpDir = testProps.getProperty("iblt.output.dir");
+        if (tmpDir == null) {
+            throw new RuntimeException("iblt.output.dir is not set in junittests.properties");
+        }
         logger.info("System property iblt.output.dir={}", System.getProperty("iblt.output.dir"));
         logger.info("tmpDir={}", new File(tmpDir).getAbsolutePath());
 
@@ -343,6 +354,9 @@ public abstract class ClientCoderTest extends CoderTest {
 
         public RandomTransactionsTestConfig(TestConfig other) {
             super(other);
+            if (other instanceof RandomTransactionsTestConfig) {
+                isRandomTxSelection = ((RandomTransactionsTestConfig)other).isRandomTxSelection;
+            }
         }
 
         @Override

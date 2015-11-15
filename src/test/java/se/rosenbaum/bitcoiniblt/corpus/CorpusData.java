@@ -18,6 +18,7 @@ public class CorpusData {
     double txRate = 0;
     double averageExtrasPerBlock = 0;
     double extrasPerTxRate = 0;
+    int lowestBlock = -1;
     int highestBlock;
     Set<Integer> orphans;
     Set<Integer> blocks;
@@ -84,6 +85,9 @@ public class CorpusData {
                         foundBlocks.add(record.blockNumber);
                         blockCount++;
                         this.highestBlock = record.blockNumber;
+                        if (lowestBlock == -1) {
+                            lowestBlock = record.blockNumber;
+                        }
                     } else {
                         deadBlocks.add(record.blockNumber);
                     }

@@ -20,11 +20,13 @@ public class AbsentTxAddingListEntriesListener<V extends Data> implements ListEn
     }
 
 
-    @Override
-    public void absentKeyDetected(ByteArrayData key, V value) {
+    public boolean absentKeyDetected(ByteArrayData key, V value) {
         ByteArrayKeyData keyData = new ByteArrayKeyData(key.getValue());
         keyData.setIndex((char)0);
         Map<ByteArrayData, ByteArrayData> fractions = encodedTransactions.get(new ByteArrayData(keyData.getBytes()));
+        if (fractions == null) {
+            return false;
+        }
         for (Map.Entry<ByteArrayData, ByteArrayData> dataEntry : fractions.entrySet()) {
             ByteArrayData key1 = dataEntry.getKey();
             ByteArrayData value1 = dataEntry.getValue();
@@ -34,6 +36,7 @@ public class AbsentTxAddingListEntriesListener<V extends Data> implements ListEn
             }
             iblt.insert(key1, value1);
         }
+        return true;
     }
 
     public Map<ByteArrayData, ByteArrayData> getAbsentEntries() {

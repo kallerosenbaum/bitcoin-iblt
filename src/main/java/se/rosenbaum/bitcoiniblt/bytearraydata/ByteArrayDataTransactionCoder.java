@@ -1,5 +1,6 @@
 package se.rosenbaum.bitcoiniblt.bytearraydata;
 
+import org.bitcoinj.core.Message;
 import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.Sha256Hash;
 import org.bitcoinj.core.Transaction;
@@ -89,7 +90,9 @@ public class ByteArrayDataTransactionCoder implements TransactionCoder<ByteArray
         }
         List<Transaction> result = new ArrayList<Transaction>(transactionGroups.size());
         for (byte[] txBytes : transactionGroups.values()) {
-            result.add(new Transaction(params, txBytes));
+            Transaction transaction = new Transaction(params, txBytes, null, false, false, Message.UNKNOWN_LENGTH);
+            transaction.verify(); // We might get bad data here.
+            result.add(transaction);
         }
         return result;
     }

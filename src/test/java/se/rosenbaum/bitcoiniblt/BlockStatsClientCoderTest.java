@@ -106,10 +106,6 @@ public class BlockStatsClientCoderTest extends ClientCoderTest {
         return MainNetParams.get();
     }
 
-    protected AggregateResultStats testFailureProbability(FailureProbabilityPrinter printer, TestConfig config) throws IOException {
-        return testFailureProbability(printer, config, Integer.MAX_VALUE);
-    }
-
     protected AggregateResultStats testFailureProbability(FailureProbabilityPrinter printer, TestConfig config, int sampleCount) throws IOException {
         AggregateResultStats stats = new AggregateResultStats();
 
@@ -119,7 +115,7 @@ public class BlockStatsClientCoderTest extends ClientCoderTest {
                 break;
             }
             stats.addSample(result);
-            if (printer != null && i % 99 == 0 && i > 0) {
+            if (printer != null && i % 100 == 0 && i > 0) {
                 printer.logResult(config, stats);
             }
         }

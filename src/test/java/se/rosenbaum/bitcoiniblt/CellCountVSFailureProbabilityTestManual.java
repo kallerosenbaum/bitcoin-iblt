@@ -16,6 +16,16 @@ public class CellCountVSFailureProbabilityTestManual extends BlockStatsClientCod
     }
 
     @Test
+    public void testFind1pctLine130() throws IOException {
+        testFind1pctLine(130);
+    }
+
+    @Test
+    public void testFind1pctLine136() throws IOException {
+        testFind1pctLine(136);
+    }
+
+    @Test
     public void testFind1pctLine64() throws IOException {
         testFind1pctLine(64);
     }

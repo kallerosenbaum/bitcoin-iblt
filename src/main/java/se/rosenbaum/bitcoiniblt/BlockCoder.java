@@ -11,6 +11,7 @@ import java.util.List;
 public class BlockCoder<K extends Data, V extends Data> {
     private TransactionSorter sorter;
     IBLTTransactionMap<K, V> transactionMap;
+    private ResidualTransactions residualTransactions;
 
     public BlockCoder(IBLT<K, V> iblt, TransactionCoder transactionCoder, TransactionSorter sorter) {
         transactionMap = new IBLTTransactionMap<K, V>(iblt, transactionCoder);
@@ -33,7 +34,7 @@ public class BlockCoder<K extends Data, V extends Data> {
         transactionMap.deleteTransactions(myTransactions);
         mutableList.addAll(myTransactions);
 
-        ResidualTransactions residualTransactions = transactionMap.decodeRemaining();
+        residualTransactions = transactionMap.decodeRemaining();
         if (residualTransactions == null) {
             return null;
         }
@@ -53,5 +54,9 @@ public class BlockCoder<K extends Data, V extends Data> {
 
     public int getResidualEntriesCount() {
         return transactionMap.getResidualEntriesCount();
+    }
+
+    public ResidualTransactions getResidualTransactions() {
+        return residualTransactions;
     }
 }

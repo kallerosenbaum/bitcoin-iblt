@@ -1,5 +1,6 @@
 package se.rosenbaum.bitcoiniblt;
 
+import org.bitcoinj.core.Transaction;
 import org.junit.Test;
 import se.rosenbaum.bitcoiniblt.printer.HashCountCellCountPrinter;
 import se.rosenbaum.bitcoiniblt.printer.IBLTSizeBlockStatsPrinter;
@@ -8,8 +9,12 @@ import se.rosenbaum.bitcoiniblt.util.AggregateResultStats;
 import se.rosenbaum.bitcoiniblt.util.BlockStatsResult;
 import se.rosenbaum.bitcoiniblt.util.Interval;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
+import se.rosenbaum.bitcoiniblt.util.TransactionSets;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * What do I want to accomplish?
@@ -178,4 +183,24 @@ public class BlockStatsRun extends BlockStatsClientCoderTest {
     }
 
 
+    @Test
+    public void testTxSizes() {
+        int cellCount = 32385;
+        TestConfig config = new RandomTransactionsTestConfig(50, 50, 50, 3, 8, 8, 4, cellCount, false);
+        TransactionSets transactionSets = config.createTransactionSets();
+        System.out.println("messageSize, optimalEncodingMessageSize");
+
+        List<Integer> sizes = new ArrayList<Integer>();
+
+        for (Transaction transaction : transactionSets.getSendersTransactions()) {
+            sizes.add(transaction.getMessageSize());
+        }
+        for (Transaction transaction : transactionSets.getReceiversTransactions()) {
+            sizes.add(transaction.getMessageSize());
+        }
+        Collections.sort(sizes);
+        for (Integer size : sizes) {
+            System.out.println(size);
+        }
+    }
 }

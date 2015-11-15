@@ -58,6 +58,12 @@ public class IBLTTransactionMap<K extends Data, V extends Data> {
         } else {
             absentTransactions = transactionCoder.decodeTransactions(listener.getAbsentEntries());
         }
+        if (extraTransactions == null || absentTransactions == null) {
+            // Couldn't assemble transactions due to failed listEntries.
+            // This can happen if we have no or very small keyHashSum. listEntries
+            // will simply believe all 1:s and -1:s are pure.
+            return null;
+        }
         ResidualTransactions result = new ResidualTransactions(extraTransactions, absentTransactions);
         return result;
     }

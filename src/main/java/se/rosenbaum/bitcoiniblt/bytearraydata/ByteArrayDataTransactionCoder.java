@@ -4,6 +4,7 @@ import org.bitcoinj.core.Message;
 import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.Sha256Hash;
 import org.bitcoinj.core.Transaction;
+import org.bitcoinj.core.VerificationException;
 import se.rosenbaum.bitcoiniblt.TransactionCoder;
 import se.rosenbaum.iblt.data.ByteArrayData;
 
@@ -61,7 +62,6 @@ public class ByteArrayDataTransactionCoder implements TransactionCoder<ByteArray
         return new ByteArrayKeyData(data);
     }
 
-    @Override
     public List<Transaction> decodeTransactions(Map<ByteArrayData, ByteArrayData> entries) {
         Map<ByteArrayData, byte[]> transactionGroups = new HashMap<ByteArrayData, byte[]>();
         int i = 0;
@@ -91,13 +91,16 @@ public class ByteArrayDataTransactionCoder implements TransactionCoder<ByteArray
         List<Transaction> result = new ArrayList<Transaction>(transactionGroups.size());
         for (byte[] txBytes : transactionGroups.values()) {
             Transaction transaction = new Transaction(params, txBytes, null, false, false, Message.UNKNOWN_LENGTH);
-            transaction.verify(); // We might get bad data here.
+            try {
+                transaction.verify(); // We might get bad data here.
+            } catch (VerificationException e) {
+                return null;
+            }
             result.add(transaction);
         }
         return result;
     }
 
-    @Override
     public Map<ByteArrayData, Map<ByteArrayData, ByteArrayData>> getEncodedTransactions() {
         return encodedTransactions;
     }

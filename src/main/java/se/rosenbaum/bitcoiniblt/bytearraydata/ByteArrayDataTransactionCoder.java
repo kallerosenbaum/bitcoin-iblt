@@ -50,6 +50,11 @@ public class ByteArrayDataTransactionCoder implements TransactionCoder<ByteArray
         return map;
     }
 
+    public boolean isEncoded(Transaction transaction) {
+        ByteArrayKeyData key = getKeyData(transaction);
+        return encodedTransactions.containsKey(new ByteArrayData(key.getBytes()));
+    }
+
     public ByteArrayKeyData getKeyData(Transaction transaction) {
         byte[] transactionId = transaction.getHash().getBytes();
         byte[] key = Arrays.copyOf(transactionId, transactionId.length + salt.length);

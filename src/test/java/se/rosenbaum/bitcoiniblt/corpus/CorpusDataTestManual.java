@@ -17,15 +17,10 @@ import se.rosenbaum.bitcoiniblt.util.Interval;
 import se.rosenbaum.bitcoiniblt.util.TestConfig;
 import se.rosenbaum.bitcoiniblt.util.TransactionSets;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.Writer;
-import java.nio.ByteBuffer;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -34,23 +29,20 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.StringTokenizer;
 
+// Orphan blocks: 352802
+// 352802 A fork. There are two of these one with 596 tx and one (the orphaned) with 637 tx.
 public class CorpusDataTestManual extends BlockStatsClientCoderTest implements TransactionStore
 {
 
 	private CorpusData corpusStats;
 	private File testFileDir;
 	private File testResultDir;
-	private File fullCorpusWithHints;
 
 	@Before
 	public void setup()
 	{
-		super.setup();
-
 		String corpusHomePath = testProps.getProperty("corpus.directory");
-		fullCorpusWithHints = new File(testProps.getProperty("rustyiblt.corpus.with.hints"));
 
 		this.corpusStats = new CorpusData(new File(corpusHomePath));
 		MAINNET_BLOCK = CorpusData.HIGHEST_BLOCK_HASH;
@@ -124,7 +116,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 			{
 				cellCount = configGenerator.getCellCount() * 9;
 			}
-			configGenerator = new TestFileTestConfigGenerator(getFile(factor), 3, 8, 64, 4, cellCount);
+			configGenerator = new TestFileTestConfigGenerator(getFile(factor), 3, 8, 64, 4, cellCount, this);
 
 			configGenerator = calculateSizeFromTargetProbability(printer, getFile(factor), configGenerator, factor, 0.05);
 		}
@@ -138,7 +130,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 		TestFileTestConfigGenerator configGenerator;
 
 		FailureProbabilityPrinter printer = new IBLTSizeVsFailureProbabilityPrinter(tempDirectory);
-		configGenerator = new TestFileTestConfigGenerator(getFile(factor), 3, 8, 64, 4, cellCount);
+		configGenerator = new TestFileTestConfigGenerator(getFile(factor), 3, 8, 64, 4, cellCount, this);
 
 		calculateSizeFromTargetProbability(printer, getFile(factor), configGenerator, factor, 0.05);
 	}
@@ -157,7 +149,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 	{
 		int cellCount = 32385;
 		File testFile = new File(testFileDir, "test-real.txt");
-		TestConfigGenerator configGenerator = new TestFileTestConfigGenerator(testFile, 3, 8, 64, 4, cellCount);
+		TestConfigGenerator configGenerator = new TestFileTestConfigGenerator(testFile, 3, 8, 64, 4, cellCount, this);
 
 		int[] category = new int[] { 8, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 256, 270, 280, 512 };
 		IBLTSizeBlockStatsPrinter valueSizeCellCountPrinter = new ValueSizeCellCountPrinter(tempDirectory, category.length,
@@ -173,7 +165,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 			TestConfigGenerator closestTestConfig = null;
 			while (true)
 			{
-				AggregateResultStats result = testFailureProbabilityForConfigGenerator(failureProbabilityPrinter, configGenerator);
+				AggregateResultStats result = testFailureProbabilityForConfigGenerator(failureProbabilityPrinter, configGenerator, null);
 				failureProbabilityPrinter.addResult(configGenerator, result);
 				if (result.getFailureProbability() <= 0.05)
 				{
@@ -189,8 +181,8 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 				{
 					interval.setLow(configGenerator.getCellCount());
 				}
-				configGenerator = new TestFileTestConfigGenerator(testFile, configGenerator.getHashFunctionCount(), configGenerator.getKeySize(),
-						configGenerator.getValueSize(), configGenerator.getKeyHashSize(), interval.nextValue(configGenerator));
+				configGenerator = configGenerator.cloneGenerator();
+				configGenerator.setCellCount(interval.nextValue(configGenerator));
 
 				if (!interval.isInsideInterval(configGenerator.getCellCount()))
 				{
@@ -215,13 +207,14 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 		{
 			FailureProbabilityPrinter printer = new IBLTSizeVsFailureProbabilityPrinter(tempDirectory);
 			configGenerator = new TestFileTestConfigGenerator(testFile, 3, 8, 64, 4, configGenerator == null ? cellCount
-					: configGenerator.getCellCount());
+					: configGenerator.getCellCount(), this);
 
 			calculateSizeFromTargetProbability(printer, testFile, configGenerator, -1, targetProbability);
 		}
 	}
 
-	private TestConfigGenerator calculateSizeFromTargetProbability(FailureProbabilityPrinter printer, File testFile,
+
+	protected TestConfigGenerator calculateSizeFromTargetProbability(FailureProbabilityPrinter printer, File testFile,
 			TestConfigGenerator configGenerator, int factor, double targetProbability) throws Exception
 	{
 		Interval interval = new Interval(0, configGenerator.getCellCount());
@@ -229,7 +222,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 		TestConfigGenerator closestTestConfig = null;
 		while (true)
 		{
-			AggregateResultStats result = testFailureProbabilityForConfigGenerator(printer, configGenerator);
+			AggregateResultStats result = testFailureProbabilityForConfigGenerator(printer, configGenerator, null);
 			printer.addResult(configGenerator, result);
 			if (result.getFailureProbability() <= targetProbability)
 			{
@@ -470,7 +463,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 		return new File(testResultDir, prefix + "-" + dateFormat.format(new Date()) + ".txt");
 	}
 
-	protected AggregateResultStats testFailureProbabilityForConfigGenerator(FailureProbabilityPrinter printer, TestConfigGenerator configGenerator)
+	protected AggregateResultStats testFailureProbabilityForConfigGenerator(FailureProbabilityPrinter printer, TestConfigGenerator configGenerator, TestListener testListener)
 			throws Exception
 	{
 		AggregateResultStats stats = new AggregateResultStats();
@@ -480,6 +473,9 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 		while (config != null)
 		{
 			BlockStatsResult result = testBlockStats(config);
+			if (testListener != null) {
+				testListener.testPerformed(config, result);
+			}
 			stats.addSample(result);
 			if (i % 100 == 0)
 			{
@@ -489,69 +485,6 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 			i++;
 		}
 		return stats;
-	}
-
-	private static class TestFilePrinter
-	{
-		Writer writer;
-
-		private TestFilePrinter(Writer writer)
-		{
-			this.writer = writer;
-		}
-
-		private void printTransactionSets(TransactionSets sets) throws IOException
-		{
-			writer.write("extra:");
-			writeTransactions(sets.getSendersTransactions());
-			writer.write("absent:");
-			writeTransactions(sets.getReceiversTransactions());
-		}
-
-		private void writeTransactions(List<Transaction> transactions) throws IOException
-		{
-			boolean first = true;
-			for (Transaction transaction : transactions)
-			{
-				if (!first)
-				{
-					writer.write(",");
-				}
-				first = false;
-				writer.write(transaction.getHash().toString());
-			}
-			writer.write("\n");
-		}
-
-		private void writeTransactions(List<String> extra, List<String> absent)
-		{
-			try
-			{
-				writer.write("extra:");
-				writeTransactionStrings(extra);
-				writer.write("absent:");
-				writeTransactionStrings(absent);
-			}
-			catch (IOException e)
-			{
-				throw new RuntimeException(e);
-			}
-		}
-
-		private void writeTransactionStrings(List<String> transactions) throws IOException
-		{
-			boolean first = true;
-			for (String transaction : transactions)
-			{
-				if (!first)
-				{
-					writer.write(",");
-				}
-				first = false;
-				writer.write(transaction);
-			}
-			writer.write("\n");
-		}
 	}
 
 	private static class IntPair
@@ -608,121 +541,6 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 		return new File(testFileDir, "test-factor-" + factor + ".txt");
 	}
 
-	private abstract class TestConfigGenerator extends TestConfig
-	{
-
-		public TestConfigGenerator(int txCount, int extraTxCount, int absentTxCount, int hashFunctionCount, int keySize, int valueSize,
-				int keyHashSize, int cellCount)
-		{
-			super(txCount, extraTxCount, absentTxCount, hashFunctionCount, keySize, valueSize, keyHashSize, cellCount);
-		}
-
-		public abstract TestConfig createNextTestConfig() throws Exception;
-
-		public abstract TestConfigGenerator cloneGenerator() throws Exception;
-	}
-
-	private class TestFileTestConfigGenerator extends TestConfigGenerator
-	{
-		private final BufferedReader fileReader;
-		private final File inputFile;
-
-		public TestFileTestConfigGenerator(File file, int hashFunctionCount, int keySize, int valueSize, int keyHashSize, int cellCount)
-				throws FileNotFoundException
-		{
-			super(0, 0, 0, hashFunctionCount, keySize, valueSize, keyHashSize, cellCount);
-			this.inputFile = file;
-			this.fileReader = new BufferedReader(new FileReader(file));
-		}
-
-		@Override
-		public TestConfigGenerator cloneGenerator() throws Exception
-		{
-			return new TestFileTestConfigGenerator(inputFile, getHashFunctionCount(), getKeySize(), getValueSize(), getKeyHashSize(), getCellCount());
-		}
-
-		public TestConfig createNextTestConfig()
-		{
-			TransactionSets nextTransactionSets = createNextTransactionSets();
-			if (nextTransactionSets == null)
-			{
-				return null;
-			}
-			setExtraTxCount(nextTransactionSets.getSendersTransactions().size());
-			setAbsentTxCount(nextTransactionSets.getReceiversTransactions().size());
-			return new TransactionSetsTestConfig(nextTransactionSets, getHashFunctionCount(), getKeySize(), getValueSize(), getKeyHashSize(),
-					getCellCount());
-		}
-
-		private TransactionSets createNextTransactionSets()
-		{
-			try
-			{
-				String line = fileReader.readLine();
-				if (line == null)
-				{
-					fileReader.close();
-					return null;
-				}
-				TransactionSets transactionSets = new TransactionSets();
-				transactionSets.setSendersTransactions(new ArrayList<Transaction>());
-				transactionSets.setReceiversTransactions(new ArrayList<Transaction>());
-				line = line.substring("extra:".length());
-				addTransactionsToList(line, transactionSets.getSendersTransactions());
-
-				line = fileReader.readLine();
-				line = line.substring("absent:".length());
-				addTransactionsToList(line, transactionSets.getReceiversTransactions());
-				return transactionSets;
-			}
-			catch (IOException e)
-			{
-				throw new RuntimeException(e);
-			}
-		}
-
-		private void addTransactionsToList(String line, List<Transaction> transactions) throws IOException
-		{
-			StringTokenizer tokenizer = new StringTokenizer(line, ",");
-			while (tokenizer.hasMoreTokens())
-			{
-				String hashString = tokenizer.nextToken();
-				Transaction transaction = getTransaction(new Sha256Hash(hashString));
-				if (transaction == null)
-				{
-					throw new RuntimeException("Couldn't find transaction " + hashString);
-				}
-				transactions.add(transaction);
-			}
-		}
-
-		@Override
-		public TransactionSets createTransactionSets()
-		{
-			return null;
-		}
-
-	}
-
-	private class TransactionSetsTestConfig extends TestConfig
-	{
-		TransactionSets transactionSets;
-
-		public TransactionSetsTestConfig(TransactionSets sets, int hashFunctionCount, int keySize, int valueSize, int keyHashSize, int cellCount)
-		{
-			super(0, 0, 0, hashFunctionCount, keySize, valueSize, keyHashSize, cellCount);
-			this.transactionSets = sets;
-			setAbsentTxCount(sets.getReceiversTransactions().size());
-			setExtraTxCount(sets.getSendersTransactions().size());
-		}
-
-		@Override
-		public TransactionSets createTransactionSets()
-		{
-			return transactionSets;
-		}
-	}
-
 	private class CorpusDataTestConfig extends TestConfig
 	{
 
@@ -744,144 +562,16 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 		}
 	}
 
-	private class FullCorpusWithHintsTestConfigGenerator extends TestConfigGenerator
-	{
-		IBLTBlockStream blockStream;
-		List<IBLTBlockStream.IBLTBlockTransfer> transfers;
-		File inputFileFromRustysBitcoinIblt;
-
-		private FullCorpusWithHintsTestConfigGenerator(File inputFileFromRustysBitcoinIblt, int cellCount) throws IOException
-		{
-			super(0, 0, 0, 3, 8, 64, 0, cellCount);
-			this.inputFileFromRustysBitcoinIblt = inputFileFromRustysBitcoinIblt;
-			blockStream = new IBLTBlockStream(this.inputFileFromRustysBitcoinIblt, CorpusDataTestManual.this);
-		}
-
-		public TestConfig createNextTestConfig() throws Exception
-		{
-			if (transfers == null || transfers.isEmpty())
-			{
-				transfers = blockStream.getNextBlockTransfers();
-				if (transfers == null)
-				{
-					return null;
-				}
-			}
-			IBLTBlockStream.IBLTBlockTransfer transfer = transfers.remove(0);
-
-			List<Transaction> blockOnlyTransactions = new ArrayList<Transaction>();
-			for (Sha256Hash blockOnly : transfer.getBlockOnly())
-			{
-				Transaction transaction = getTransaction(blockOnly);
-				if (transaction == null)
-				{
-					throw new RuntimeException("Couldn't find transaction " + blockOnly);
-				}
-				blockOnlyTransactions.add(transaction);
-			}
-			List<Transaction> mempoolOnlyTransactions = new ArrayList<Transaction>();
-			for (Sha256Hash mempoolOnly : transfer.getMempoolOnly())
-			{
-				Transaction transaction = getTransaction(mempoolOnly);
-				if (transaction == null)
-				{
-					throw new RuntimeException("Couldn't find transaction " + mempoolOnly);
-				}
-				mempoolOnlyTransactions.add(transaction);
-			}
-			TransactionSets transactionSets = new TransactionSets();
-			transactionSets.setReceiversTransactions(mempoolOnlyTransactions);
-			transactionSets.setSendersTransactions(blockOnlyTransactions);
-			TransactionSetsTestConfig testConfig = new TransactionSetsTestConfig(transactionSets, getHashFunctionCount(), getKeySize(), getValueSize(), getKeyHashSize(), getCellCount());
-			return testConfig;
-		}
-
-		@Override
-		public TestConfigGenerator cloneGenerator() throws Exception
-		{
-			return new FullCorpusWithHintsTestConfigGenerator(inputFileFromRustysBitcoinIblt, getCellCount());
-		}
-
-		@Override
-		public TransactionSets createTransactionSets()
-		{
-			return null;
-		}
-	}
-
 	@Test
-	public void testFromFullCorpusTestWithHints() throws Exception
-	{
-		int cellCount = 249;
-		FailureProbabilityPrinter printer = new IBLTSizeVsFailureProbabilityPrinter(tempDirectory);
-		FullCorpusWithHintsTestConfigGenerator configGenerator = new FullCorpusWithHintsTestConfigGenerator(fullCorpusWithHints, cellCount);
-
-		calculateSizeFromTargetProbability(printer, fullCorpusWithHints, configGenerator, -1, 0.05);
-	}
-
-	@Test
-	public void testCalculateTotalOverhead() throws Exception
-	{
-		IBLTBlockStream blockStream = new IBLTBlockStream(fullCorpusWithHints, CorpusDataTestManual.this);
-		List<IBLTBlockStream.IBLTBlockTransfer> blockTransfers = blockStream.getNextBlockTransfers();
-		int totalOverhead = 0;
-		print("height,from,to,block-only,mempool-only%n");
-		while (blockTransfers != null)
-		{
-			for (IBLTBlockStream.IBLTBlockTransfer blockTransfer : blockTransfers)
-			{
-				IBLTBlockStream.IBLTBlock ibltBlock = blockTransfer.ibltBlock;
-				print("%d,%s,%s,%d,%d%n", ibltBlock.getHeight(), ibltBlock.ibltData.getNodeName(), blockTransfer.receiverTxGuessData.getNodeName(),
-						blockTransfer.getBlockOnly().size(), blockTransfer.getMempoolOnly().size());
-				totalOverhead += blockTransfer.getOverhead();
+	public void testPrintBlocksReceivedAtAU() throws IOException {
+		RecordInputStream recordInputStream = corpusStats.getRecordInputStream(CorpusData.Node.SF);
+		Record record = recordInputStream.readRecord();
+		while (record != null) {
+			if (record.type == Type.COINBASE) {
+				System.out.println(new Date(record.timestamp*1000) + " " + record.blockNumber);
 			}
-			blockTransfers = blockStream.getNextBlockTransfers();
+			record = recordInputStream.readRecord();
 		}
-		System.out.println("Total overhead = " + totalOverhead);
-	}
-
-	private class SpecificSaltTestConfig extends TransactionSetsTestConfig {
-		long salt = 0;
-		SpecificSaltTestConfig(TransactionSets sets, int hashFunctionsCount, int keySize, int valueSize,
-							   int keyHashSize, int cellCount) {
-			super(sets, hashFunctionsCount, keySize, valueSize, keyHashSize, cellCount);
-		}
-
-		private void setSalt(long salt) {
-			this.salt = salt;
-		}
-
-		@Override
-		public byte[] getSalt() {
-			byte[] saltBytes = new byte[32];
-			ByteBuffer byteBuffer = ByteBuffer.wrap(saltBytes);
-			byteBuffer.putLong(salt);
-			return saltBytes;
-		}
-	}
-
-	@Test
-	public void testInfiniteLoop() throws IOException {
-		String senderTx = "882e5a73ff3744c59dcbe1286aea95d6742b6264b492a5b62450c420f68a7f80";   // Stor 1110 bytes
-		String receiverTx = "b31d8ab7b0f7afff6f780be0ddebf64b146986ab3c5f64322acf18e4970e183e"; // Liten 369 bytes
-		int cellCount = 45;
-
-		TransactionSets sets = new TransactionSets();
-		sets.setSendersTransactions(Collections.singletonList(getTransaction(new Sha256Hash(senderTx))));
-		sets.setReceiversTransactions(Collections.singletonList(getTransaction(new Sha256Hash(receiverTx))));
-
-		SpecificSaltTestConfig testConfig = new SpecificSaltTestConfig(sets, 3, 8, 64, 0, cellCount);
-
-		long salt = 22;
-
-		testConfig.setSalt(salt);
-		BlockStatsResult blockStatsResult = testBlockStats(testConfig);
-
-		print("%d Success: %s%n", salt-1, blockStatsResult.isSuccess());
-	}
-
-	private void print(String message, Object... params)
-	{
-		System.out.printf(message, params);
+		recordInputStream.close();
 	}
 }

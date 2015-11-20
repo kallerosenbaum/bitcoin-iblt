@@ -49,8 +49,29 @@ public class IBLTTransactionMap<K extends Data, V extends Data> {
         if (residualData == null) {
             return null;
         }
-        residualEntriesCount = residualData.getAbsentEntries().size() + residualData.getExtraEntries().size();
-        Collection<Transaction> extraTransactions = transactionCoder.decodeTransactions(residualData.getExtraEntries());
+        Map<K, V> extraEntries = residualData.getExtraEntries();
+        residualEntriesCount = residualData.getAbsentEntries().size() + extraEntries.size();
+        Collection<Transaction> extraTransactions = transactionCoder.decodeTransactions(extraEntries);
+
+        if (extraTransactions == null) {
+            // Couldn't assemble transactions due to failed listEntries.
+            // This can happen if we have no or too small keyHashSum. listEntries
+            // will simply believe all 1:s and -1:s are pure.
+            return null;
+        }
+        for (Transaction extraTransaction : extraTransactions) {
+            if (transactionCoder.isEncoded(extraTransaction)) {
+                // This means that a guessed-transaction appears among the block-only transactions
+                // This can happen if keyHashSum is of small size or zero size.
+                // Suppose we add two slices from same tx, X, to a cell:
+                // xxxxxx01 + xxxxxx02 = 00000003 (count=2)
+                // Then we remove a slice from another tx, Y:
+                // 00000003 + yyyyyy01 = yyyyyy02 (count=1)
+                // This can now be read as a correct block-only slice. With a bit of bad luch
+                // this can happen to all slices of Y and the tx would assemble just fine.
+                return null;
+            }
+        }
 
         Collection<Transaction> absentTransactions;
         if (listener == null) {
@@ -58,10 +79,8 @@ public class IBLTTransactionMap<K extends Data, V extends Data> {
         } else {
             absentTransactions = transactionCoder.decodeTransactions(listener.getAbsentEntries());
         }
-        if (extraTransactions == null || absentTransactions == null) {
-            // Couldn't assemble transactions due to failed listEntries.
-            // This can happen if we have no or very small keyHashSum. listEntries
-            // will simply believe all 1:s and -1:s are pure.
+        if (absentTransactions == null) {
+            // See comment in null check for extraTransactions above
             return null;
         }
         ResidualTransactions result = new ResidualTransactions(extraTransactions, absentTransactions);

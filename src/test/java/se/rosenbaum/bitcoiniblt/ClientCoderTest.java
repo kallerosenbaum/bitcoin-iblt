@@ -86,12 +86,17 @@ public abstract class ClientCoderTest extends CoderTest {
         if (tmpDir == null) {
             throw new RuntimeException("iblt.output.dir is not set in junittests.properties");
         }
+        String cacheDir = testProps.getProperty("iblt.cache.dir");
+        if (tmpDir == null) {
+            throw new RuntimeException("iblt.cache.dir is not set in junittests.properties");
+        }
         logger.info("System property iblt.output.dir={}", System.getProperty("iblt.output.dir"));
         logger.info("tmpDir={}", new File(tmpDir).getAbsolutePath());
 
         tempDirectory = new File(new File(tmpDir), "data");
-        blockDirectory = new File(tempDirectory, "blocks");
-        transactionDirectory = new File(tempDirectory, "transactions");
+        File cacheDirectory = new File(cacheDir);
+        blockDirectory = new File(cacheDirectory, "blocks");
+        transactionDirectory = new File(cacheDirectory, "transactions");
         walletDirectory = new File(tempDirectory, "wallet");
         blockDirectory.mkdirs();
         transactionDirectory.mkdirs();
@@ -135,7 +140,6 @@ public abstract class ClientCoderTest extends CoderTest {
             if (block != null) {
                 logger.debug("found on file system!");
                 blockCache.put(blockId, block);
-                saveTransactions(block);
                 return block;
             }
 

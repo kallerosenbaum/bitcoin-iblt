@@ -11,4 +11,6 @@ public interface TransactionCoder<K, V> {
     Collection<Transaction> decodeTransactions(Map<K, V> entries);
 
     Map<K, Map<K, V>> getEncodedTransactions();
+
+    boolean isEncoded(Transaction transaction);
 }

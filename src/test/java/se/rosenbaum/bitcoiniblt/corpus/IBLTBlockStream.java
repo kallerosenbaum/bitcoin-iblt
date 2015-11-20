@@ -1,8 +1,6 @@
 package se.rosenbaum.bitcoiniblt.corpus;
 
-import org.bitcoinj.core.Coin;
 import org.bitcoinj.core.Sha256Hash;
-import org.bitcoinj.core.Transaction;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -18,12 +16,12 @@ public class IBLTBlockStream {
     private final TransactionStore transactionStore;
     BufferedReader inputReader;
 
-    public static class MempoolData {
+    public static class TransactionSet {
         String nodeName;
-        Set<Sha256Hash> nodeMempool;
+        Set<Sha256Hash> transactions;
 
-        public MempoolData(String nodeName, Set<Sha256Hash> nodeMempool) {
-            this.nodeMempool = nodeMempool;
+        public TransactionSet(String nodeName, Set<Sha256Hash> transactions) {
+            this.transactions = transactions;
             this.nodeName = nodeName;
         }
 
@@ -35,12 +33,14 @@ public class IBLTBlockStream {
     public static class IBLTBlock {
         int overhead;
         int height;
-        MempoolData ibltData;
+        TransactionSet ibltData;
+        TransactionSet senderMempool;
 
-        public IBLTBlock(MempoolData ibltData, int height, int overhead) {
+        public IBLTBlock(TransactionSet ibltData, TransactionSet sendarMempool, int height, int overhead) {
             this.ibltData = ibltData;
             this.height = height;
             this.overhead = overhead;
+            this.senderMempool = sendarMempool;
         }
 
         public int getHeight() {
@@ -50,17 +50,17 @@ public class IBLTBlockStream {
 
     public class IBLTBlockTransfer {
         IBLTBlock ibltBlock;
-        MempoolData receiverTxGuessData; // This is the guesses after filtering through fee-hint and added/removed sets.
+        TransactionSet receiverTxGuessData; // This is the guesses after filtering through fee-hint and added/removed sets.
 
-        private IBLTBlockTransfer(IBLTBlock ibltBlock, MempoolData receiverTxGuessData) {
+        private IBLTBlockTransfer(IBLTBlock ibltBlock, TransactionSet receiverTxGuessData) {
             this.ibltBlock = ibltBlock;
             this.receiverTxGuessData = receiverTxGuessData;
         }
 
         public Set<Sha256Hash> getMempoolOnly() {
             Set<Sha256Hash> mempoolOnly = new HashSet<Sha256Hash>();
-            Set<Sha256Hash> ibltTxs = ibltBlock.ibltData.nodeMempool;
-            for (Sha256Hash guessTx : receiverTxGuessData.nodeMempool) {
+            Set<Sha256Hash> ibltTxs = ibltBlock.ibltData.transactions;
+            for (Sha256Hash guessTx : receiverTxGuessData.transactions) {
                 if (!ibltTxs.contains(guessTx)) {
                     mempoolOnly.add(guessTx);
                 }
@@ -70,8 +70,8 @@ public class IBLTBlockStream {
 
         public Set<Sha256Hash> getBlockOnly() throws Exception {
             Set<Sha256Hash> blockOnly = new HashSet<Sha256Hash>();
-            for (Sha256Hash ibltTx : ibltBlock.ibltData.nodeMempool) {
-                if (!receiverTxGuessData.nodeMempool.contains(ibltTx)) {
+            for (Sha256Hash ibltTx : ibltBlock.ibltData.transactions) {
+                if (!receiverTxGuessData.transactions.contains(ibltTx)) {
                     blockOnly.add(ibltTx);
                 }
             }
@@ -112,21 +112,21 @@ public class IBLTBlockStream {
         int height = Integer.parseInt(tokenizer.nextToken());
         int overhead = Integer.parseInt(tokenizer.nextToken());
 
-        MempoolData ibltData = readMempoolData(); // iblt data
+        Set<Sha256Hash> blockTransactions = getTransactionSet(tokenizer);
 
-        MempoolData senderMempool = readMempoolData();
+        TransactionSet senderMempool = readMempoolDataLine();
+        TransactionSet ibltData = new TransactionSet(senderMempool.getNodeName(), blockTransactions);
 
-        ibltData.nodeName = senderMempool.getNodeName(); // We only use senderMempool to the the node name
-        return new IBLTBlock(ibltData, height, overhead);
+        return new IBLTBlock(ibltData, senderMempool, height, overhead);
     }
 
 
     private IBLTBlockTransfer readIBLTBlockTransfer(IBLTBlock ibltBlock) throws IOException {
-        MempoolData mempoolData = readMempoolData();
-        return new IBLTBlockTransfer(ibltBlock, mempoolData);
+        TransactionSet transactionSet = readMempoolDataLine();
+        return new IBLTBlockTransfer(ibltBlock, transactionSet);
     }
 
-    private MempoolData readMempoolData() throws IOException {
+    private TransactionSet readMempoolDataLine() throws IOException {
         String line;
         StringTokenizer tokenizer;
         line = inputReader.readLine();
@@ -138,7 +138,7 @@ public class IBLTBlockStream {
         name = name.substring(name.lastIndexOf('/') + 1);
         Set<Sha256Hash> mempoolTransactions = getTransactionSet(tokenizer);
 
-        return new MempoolData(name, mempoolTransactions);
+        return new TransactionSet(name, mempoolTransactions);
     }
     private Set<Sha256Hash> getTransactionSet(StringTokenizer tokenizer) {
         Set<Sha256Hash> transactions = new HashSet<Sha256Hash>();

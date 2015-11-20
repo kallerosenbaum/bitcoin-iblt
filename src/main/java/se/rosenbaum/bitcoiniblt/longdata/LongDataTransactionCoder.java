@@ -26,7 +26,6 @@ public class LongDataTransactionCoder implements TransactionCoder<LongData, Long
         this.salt = salt;
     }
 
-    @Override
     public Map<LongData, LongData> encodeTransaction(Transaction transaction) {
         Map<LongData, LongData> map = new HashMap<LongData, LongData>();
         byte[] transactionId = transaction.getHash().getBytes();
@@ -67,7 +66,6 @@ public class LongDataTransactionCoder implements TransactionCoder<LongData, Long
         return new Transaction(params, txBytes);
     }
 
-    @Override
     public List<Transaction> decodeTransactions(Map<LongData, LongData> entries) {
         Map<Long, byte[]> transactionGroups = new HashMap<Long, byte[]>();
         for (Map.Entry<LongData, LongData> entry : entries.entrySet()) {
@@ -102,9 +100,12 @@ public class LongDataTransactionCoder implements TransactionCoder<LongData, Long
         return result;
     }
 
-    @Override
     public Map<LongData, Map<LongData, LongData>> getEncodedTransactions() {
         // Unsupported
         return null;
+    }
+
+    public boolean isEncoded(Transaction transaction) {
+        return false;
     }
 }

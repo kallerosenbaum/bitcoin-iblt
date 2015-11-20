@@ -33,7 +33,7 @@ public class BlockStatsClientCoderTest extends ClientCoderTest {
 
 
     @Before
-    public void setup() {
+    public void setupBlockStatsClientCoderTest() {
         sorter = new CanonicalOrderTransactionSorter();
     }
 

@@ -49,12 +49,13 @@ public class CorpusDataAfterHeuristicTestManual extends CorpusDataTestManual {
     }
 
     private void runFullCorpusTestWithHintsDynamic(int initialTxCount) throws Exception {
-        FailureProbabilityPrinter printer = new IBLTSizeVsFailureProbabilityPrinter(tempDirectory);
         final FullCorpusWithHintsDynamicCellCountTestConfigGeneratorImpl configGenerator =
                 new FullCorpusWithHintsDynamicCellCountTestConfigGeneratorImpl(fullCorpusWithHints, initialTxCount, this);
         print("height  from    to unknown uk-bytes  cells bl-only mp-only success\n");
+        final AggregateResultStats resultStats = new AggregateResultStats();
         TestListener listener = new TestListener() {
             public void testPerformed(TestConfig config, BlockStatsResult result) {
+                resultStats.addSample(result);
                 if (!result.isSuccess()) {
                     print("%6d%6s%6s%8d%9d%7d%8d%8d%8b%n", configGenerator.currentTransfer.ibltBlock.getHeight(),
                             configGenerator.currentTransfer.ibltBlock.ibltData.getNodeName(),
@@ -65,9 +66,9 @@ public class CorpusDataAfterHeuristicTestManual extends CorpusDataTestManual {
                 }
             }
         };
-        AggregateResultStats result = testFailureProbabilityForConfigGenerator(printer, configGenerator, listener);
+        testFailureProbabilityForConfigGenerator(configGenerator, listener);
         print("Initial tx: %d, Successes: %d, Failures: %d, Failure probability: %f, Total IBLT size: %d%n",
-                initialTxCount, result.getSuccesses(), result.getFailures(), result.getFailureProbability(),
+                initialTxCount, resultStats.getSuccesses(), resultStats.getFailures(), resultStats.getFailureProbability(),
                 configGenerator.getTotalIBLTSize());
     }
 
@@ -82,7 +83,7 @@ public class CorpusDataAfterHeuristicTestManual extends CorpusDataTestManual {
         FailureProbabilityPrinter printer = new IBLTSizeVsFailureProbabilityPrinter(tempDirectory);
         FullCorpusWithHintsTestConfigGenerator configGenerator = new FullCorpusWithHintsTestConfigGenerator(fullCorpusWithHints, cellCount, this);
 
-        AggregateResultStats result = testFailureProbabilityForConfigGenerator(printer, configGenerator, null);
+        AggregateResultStats result = testFailureProbabilityForConfigGenerator(printer, configGenerator);
 
         print("Successes: %d, Failures: %d, Failure probability: %f%n", result.getSuccesses(), result.getFailures(), result.getFailureProbability());
 

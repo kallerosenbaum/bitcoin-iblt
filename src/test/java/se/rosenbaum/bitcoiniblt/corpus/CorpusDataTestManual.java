@@ -165,7 +165,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 			TestConfigGenerator closestTestConfig = null;
 			while (true)
 			{
-				AggregateResultStats result = testFailureProbabilityForConfigGenerator(failureProbabilityPrinter, configGenerator, null);
+				AggregateResultStats result = testFailureProbabilityForConfigGenerator(failureProbabilityPrinter, configGenerator);
 				failureProbabilityPrinter.addResult(configGenerator, result);
 				if (result.getFailureProbability() <= 0.05)
 				{
@@ -222,7 +222,7 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 		TestConfigGenerator closestTestConfig = null;
 		while (true)
 		{
-			AggregateResultStats result = testFailureProbabilityForConfigGenerator(printer, configGenerator, null);
+			AggregateResultStats result = testFailureProbabilityForConfigGenerator(printer, configGenerator);
 			printer.addResult(configGenerator, result);
 			if (result.getFailureProbability() <= targetProbability)
 			{
@@ -463,28 +463,48 @@ public class CorpusDataTestManual extends BlockStatsClientCoderTest implements T
 		return new File(testResultDir, prefix + "-" + dateFormat.format(new Date()) + ".txt");
 	}
 
-	protected AggregateResultStats testFailureProbabilityForConfigGenerator(FailureProbabilityPrinter printer, TestConfigGenerator configGenerator, TestListener testListener)
+	private static class DefaultTestListener implements TestListener {
+		AggregateResultStats stats = new AggregateResultStats();
+		int i = 1;
+		FailureProbabilityPrinter printer;
+
+		public DefaultTestListener(FailureProbabilityPrinter printer) {
+			this.printer = printer;
+		}
+
+		public void testPerformed(TestConfig config, BlockStatsResult result) {
+			stats.addSample(result);
+			if (i % 100 == 0)
+			{
+				printer.logResult(config, stats);
+			}
+			i++;
+		}
+
+		public AggregateResultStats getStats() {
+			return stats;
+		}
+	}
+
+	protected AggregateResultStats testFailureProbabilityForConfigGenerator(FailureProbabilityPrinter printer, TestConfigGenerator configGenerator)
+			throws Exception {
+		DefaultTestListener listener = new DefaultTestListener(printer);
+		testFailureProbabilityForConfigGenerator(configGenerator, listener);
+		return listener.getStats();
+	}
+
+	protected void testFailureProbabilityForConfigGenerator(TestConfigGenerator configGenerator, TestListener testListener)
 			throws Exception
 	{
-		AggregateResultStats stats = new AggregateResultStats();
-
 		TestConfig config = configGenerator.createNextTestConfig();
-		int i = 1;
 		while (config != null)
 		{
 			BlockStatsResult result = testBlockStats(config);
 			if (testListener != null) {
 				testListener.testPerformed(config, result);
 			}
-			stats.addSample(result);
-			if (i % 100 == 0)
-			{
-				printer.logResult(config, stats);
-			}
 			config = configGenerator.createNextTestConfig();
-			i++;
 		}
-		return stats;
 	}
 
 	private static class IntPair

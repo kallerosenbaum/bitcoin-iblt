@@ -122,7 +122,7 @@ public class FullCorpusWithHintsDynamicCellCountTestConfigGeneratorImpl extends 
 
         int minimumCells = sliceCountForBytes(INITIAL_TX_SIZE) * minimumTx;
         if (slices < minimumCells) {
-            slices = minimumCells;
+            slices += minimumCells;
         }
 
         return getCellCountForSlices(slices);

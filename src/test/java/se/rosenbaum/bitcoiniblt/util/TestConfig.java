@@ -45,7 +45,7 @@ public abstract class TestConfig {
     }
 
     public int getIbltSize() {
-        return getCellCount() * (getKeySize() + getValueSize() + getKeyHashSize() + 4/*counter*/);
+        return getCellCount() * (getKeySize() + getValueSize() + getKeyHashSize() + 1/*counter*/);
     }
 
     public int getTxCount() {
@@ -122,5 +122,9 @@ public abstract class TestConfig {
         byte[] salt = new byte[32];
         random.nextBytes(salt);
         return salt;
+    }
+
+    public boolean assertTransactionListCorrect() {
+        return true;
     }
 }

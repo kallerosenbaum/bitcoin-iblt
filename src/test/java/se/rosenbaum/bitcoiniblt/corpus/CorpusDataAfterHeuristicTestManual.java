@@ -18,11 +18,23 @@ import java.util.List;
 import java.util.Set;
 
 public class CorpusDataAfterHeuristicTestManual extends CorpusDataTestManual {
-    private File fullCorpusWithHints;
+    public static final String COMMON_HEADERS = " raw-blocks success failure fail-prob sent-bytes%n";
+    public static final String COMMON_PATTERN = "%11d %7d %7d %9f %10d%n";
+    public static final String RUSTY_HEADERS = "init-tx factor" + COMMON_HEADERS;
+    public static final String RUSTY_PATTERN = "%7d %6.2f";
+    public static final String MODIFIED_RUSTY_HEADERS = "init-tx" + COMMON_HEADERS;
+    public static final String MODIFIED_RUSTY_PATTERN = "%7d";
+
+
+    private File fullCorpusWithHintsNoWeak;
+    private File fullCorpusWithHintsWeak;
+    private File fullCorpusWithHintsWeakOnlyStrong;
 
     @Before
     public void setup() {
-        fullCorpusWithHints = new File(testProps.getProperty("rustyiblt.corpus.with.hints"));
+        fullCorpusWithHintsNoWeak = new File(testProps.getProperty("rustyiblt.corpus.with.hints.noweak"));
+        fullCorpusWithHintsWeak = new File(testProps.getProperty("rustyiblt.corpus.with.hints.weak"));
+        fullCorpusWithHintsWeakOnlyStrong = new File(testProps.getProperty("rustyiblt.corpus.with.hints.weak.only.strong.output"));
     }
 
     @Test
@@ -30,46 +42,103 @@ public class CorpusDataAfterHeuristicTestManual extends CorpusDataTestManual {
     {
         int cellCount = 501;
         FailureProbabilityPrinter printer = new IBLTSizeVsFailureProbabilityPrinter(tempDirectory);
-        FullCorpusWithHintsTestConfigGenerator configGenerator = new FullCorpusWithHintsTestConfigGenerator(fullCorpusWithHints, cellCount, this);
+        FullCorpusWithHintsTestConfigGenerator configGenerator = new FullCorpusWithHintsTestConfigGenerator(fullCorpusWithHintsNoWeak, cellCount, this);
 
-        calculateSizeFromTargetProbability(printer, fullCorpusWithHints, configGenerator, -1, 0.05);
+        calculateSizeFromTargetProbability(printer, fullCorpusWithHintsNoWeak, configGenerator, -1, 0.05);
     }
 
     @Test
-    public void testFromFullCorpusTestWithHintsDynamicMultipleInitialTx() throws Exception {
-        for (int i = 0; i < 5; i++) {
-            runFullCorpusTestWithHintsDynamic(i);
+    public void testDifferentCalculateSizeHeuristics() throws Exception {
+        print(RUSTY_HEADERS);
+        for (int i = 1; i < 5; i++) {
+            for (double factor = 1.0; factor < 1.61; factor += 0.05) {
+                testRustysSizeCalculator(i, factor);
+            }
+        }
+        print(MODIFIED_RUSTY_HEADERS);
+        for (int i = 1; i < 5; i++) {
+            testModifiedRustysSizeCalculator(i);
         }
     }
 
     @Test
-    public void testFromFullCorpusTestWithHintsDynamic() throws Exception
-    {
-        runFullCorpusTestWithHintsDynamic(2);
+    public void testFromFullCorpusTestWithHintsDynamicMultipleInitialTx() throws Exception {
+        print(MODIFIED_RUSTY_HEADERS);
+        for (int i = 1; i < 5; i++) {
+            testModifiedRustysSizeCalculator(i);
+        }
     }
 
-    private void runFullCorpusTestWithHintsDynamic(int initialTxCount) throws Exception {
-        final FullCorpusWithHintsDynamicCellCountTestConfigGeneratorImpl configGenerator =
-                new FullCorpusWithHintsDynamicCellCountTestConfigGeneratorImpl(fullCorpusWithHints, initialTxCount, this);
-        print("height  from    to unknown uk-bytes  cells bl-only mp-only success\n");
+    @Test
+    public void testFromFullCorpusTestWithHintsDynamic4InitialTx() throws Exception {
+        print(MODIFIED_RUSTY_HEADERS);
+        testModifiedRustysSizeCalculator(4);
+    }
+
+    @Test
+    public void testFromFullCorpusTestWithHintsDynamic4InitialTxRusty() throws Exception {
+        print(RUSTY_HEADERS);
+        testRustysSizeCalculator(2, 1.35);
+    }
+
+    @Test
+    public void testFromFullCorpusTestWithHintsDynamic4InitialTxRustyWithWeak() throws Exception {
+        RustysSizeCalculator sizeCalculator = new RustysSizeCalculator(4, this, 1.3);
+        runFullCorpusTestWithHintsDynamic(sizeCalculator, fullCorpusWithHintsWeak, true, false);
+    }
+
+    @Test
+    public void testFromFullCorpusTestWithHintsDynamic4InitialTxRustyWithWeakOnlyStrong() throws Exception {
+        print(RUSTY_HEADERS);
+        for (int i = 1; i < 5; i++) {
+            for (double factor = 1.0; factor <= 1.61; factor += 0.05) {
+                print(RUSTY_PATTERN, i, factor);
+                final RustysSizeCalculator sizeCalculator = new RustysSizeCalculator(i, this, factor);
+                runFullCorpusTestWithHintsDynamic(sizeCalculator, fullCorpusWithHintsWeakOnlyStrong, false, false);
+            }
+        }
+    }
+
+    private void testRustysSizeCalculator(int initialTxCount, double extraFactor) throws Exception
+    {
+        final RustysSizeCalculator sizeCalculator = new RustysSizeCalculator(initialTxCount, this, extraFactor);
+        print(RUSTY_PATTERN, initialTxCount, extraFactor);
+        runFullCorpusTestWithHintsDynamic(sizeCalculator, fullCorpusWithHintsNoWeak, false, false);
+    }
+
+    private void testModifiedRustysSizeCalculator(int initialTxCount) throws Exception
+    {
+        final ModifiedRustysSizeCalculator sizeCalculator = new ModifiedRustysSizeCalculator(initialTxCount, this);
+        print(MODIFIED_RUSTY_HEADERS);
+        print(MODIFIED_RUSTY_PATTERN, initialTxCount);
+        runFullCorpusTestWithHintsDynamic(sizeCalculator, fullCorpusWithHintsNoWeak, false, false);
+    }
+
+    private void runFullCorpusTestWithHintsDynamic(final SizeCalculator sizeCalculator, File inputFile, boolean fileIncludesWeak, boolean processWeak) throws Exception {
+        final FullCorpusWithHintsDynamicCellCountTestConfigGenerator configGenerator =
+                new FullCorpusWithHintsDynamicCellCountTestConfigGenerator(sizeCalculator, inputFile, this, fileIncludesWeak, processWeak);
+//        print("height  from    to unknown uk-bytes  cells bl-only mp-only success\n");
         final AggregateResultStats resultStats = new AggregateResultStats();
         TestListener listener = new TestListener() {
             public void testPerformed(TestConfig config, BlockStatsResult result) {
                 resultStats.addSample(result);
-                if (!result.isSuccess()) {
-                    print("%6d%6s%6s%8d%9d%7d%8d%8d%8b%n", configGenerator.currentTransfer.ibltBlock.getHeight(),
-                            configGenerator.currentTransfer.ibltBlock.ibltData.getNodeName(),
-                            configGenerator.currentTransfer.receiverTxGuessData.getNodeName(),
-                            configGenerator.unknowns,
-                            configGenerator.unknownBytes,
-                            config.getCellCount(), config.getExtraTxCount(), config.getAbsentTxCount(), result.isSuccess());
-                }
+
+//                if (!result.isSuccess()) {
+//                    print("%6d%6s%6s%8d%9d%7d%8d%8d%8b%n", configGenerator.currentTransfer.ibltBlock.getHeight(),
+//                            configGenerator.currentTransfer.ibltBlock.ibltData.getNodeName(),
+//                            configGenerator.currentTransfer.receiverTxGuessData.getNodeName(),
+//                            sizeCalculator.getUnknowns(),
+//                            sizeCalculator.getUnknownBytes(),
+//                            config.getCellCount(), config.getExtraTxCount(), config.getAbsentTxCount(), result.isSuccess());
+//                }
             }
         };
         testFailureProbabilityForConfigGenerator(configGenerator, listener);
-        print("Initial tx: %d, Successes: %d, Failures: %d, Failure probability: %f, Total IBLT size: %d%n",
-                initialTxCount, resultStats.getSuccesses(), resultStats.getFailures(), resultStats.getFailureProbability(),
-                configGenerator.getTotalIBLTSize());
+        double failureProbability = ((double)resultStats.getFailures()) / (resultStats.getFailures() + resultStats.getSuccesses() + configGenerator.getRawBlocks());
+        print(COMMON_PATTERN,
+                configGenerator.getRawBlocks(),
+                resultStats.getSuccesses(), resultStats.getFailures(), failureProbability,
+                configGenerator.getTotalBytesSent());
     }
 
     // Info:
@@ -81,7 +150,7 @@ public class CorpusDataAfterHeuristicTestManual extends CorpusDataTestManual {
         //int cellCount = 453;    // This is my test result for target failure probability 125.0/2112 (Rusty's failure probability). I get 0.059659, 0.059659,0.059659
                                // With rusty's fixes of bad mempools I get: 0.047157, 0.050393, 0.050855, 0.049931
         FailureProbabilityPrinter printer = new IBLTSizeVsFailureProbabilityPrinter(tempDirectory);
-        FullCorpusWithHintsTestConfigGenerator configGenerator = new FullCorpusWithHintsTestConfigGenerator(fullCorpusWithHints, cellCount, this);
+        FullCorpusWithHintsTestConfigGenerator configGenerator = new FullCorpusWithHintsTestConfigGenerator(fullCorpusWithHintsNoWeak, cellCount, this);
 
         AggregateResultStats result = testFailureProbabilityForConfigGenerator(printer, configGenerator);
 
@@ -92,7 +161,7 @@ public class CorpusDataAfterHeuristicTestManual extends CorpusDataTestManual {
     @Test
     public void testCalculateTotalOverhead() throws Exception
     {
-        IBLTBlockStream blockStream = new IBLTBlockStream(fullCorpusWithHints, this);
+        IBLTBlockStream blockStream = new IBLTBlockStream(fullCorpusWithHintsNoWeak, this);
         List<IBLTBlockStream.IBLTBlockTransfer> blockTransfers = blockStream.getNextBlockTransfers();
         int totalOverhead = 0;
         int numberOfTransfers = 0;
@@ -113,10 +182,10 @@ public class CorpusDataAfterHeuristicTestManual extends CorpusDataTestManual {
                 numberOfBlockOnly += blockOnlyCount;
                 numberOfMempoolOnly += mempoolOnlyCount;
 //				if (mempoolOnlyCount + blockOnlyCount > 20) {
-                    print(pattern, ibltBlock.getHeight(), ibltBlock.ibltData.getNodeName(), blockTransfer.receiverTxGuessData.getNodeName(),
-                            blockTransfer.ibltBlock.ibltData.transactions.size(), blockTransfer.ibltBlock.senderMempool.transactions.size(),
-                            blockTransfer.receiverTxGuessData.transactions.size(), blockOnlyCount, mempoolOnlyCount);
-                    numberOfBigTransfers++;
+//                    print(pattern, ibltBlock.getHeight(), ibltBlock.ibltData.getNodeName(), blockTransfer.receiverTxGuessData.getNodeName(),
+//                            blockTransfer.ibltBlock.ibltData.transactions.size(), blockTransfer.ibltBlock.senderMempool.transactions.size(),
+//                            blockTransfer.receiverTxGuessData.transactions.size(), blockOnlyCount, mempoolOnlyCount);
+//                    numberOfBigTransfers++;
 //				}
                 totalOverhead += blockTransfer.getOverhead();
                 numberOfTransfers++;

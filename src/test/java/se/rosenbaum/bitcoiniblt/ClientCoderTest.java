@@ -123,6 +123,7 @@ public abstract class ClientCoderTest extends CoderTest {
             if (fileContents.length != inputStream.read(fileContents)) {
                 throw new RuntimeException("Couldn't read transaction " + transactionId + " from file " + txFile.getAbsolutePath());
             }
+            inputStream.close();
             return new Transaction(getParams(), fileContents);
         }
         return null;

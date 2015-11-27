@@ -166,7 +166,6 @@ public class DiffCountVSCellCountTestManual extends BlockStatsClientCoderTest {
         }
         printer.finish();
     }
-
 }
 
 

@@ -20,4 +20,9 @@ class TransactionSetsTestConfig extends TestConfig
     {
         return transactionSets;
     }
+
+    @Override
+    public boolean assertTransactionListCorrect() {
+        return false;
+    }
 }

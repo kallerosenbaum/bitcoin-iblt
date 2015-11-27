@@ -87,9 +87,29 @@ public class BlockStatsClientCoderTest extends ClientCoderTest {
         }
 
         List<Transaction> decodedTransaction = capture.getValues();
-        assertListsEqual(sortedBlockTransactions, decodedTransaction);
-        result.setSuccess(true);
+        if (config.assertTransactionListCorrect()) {
+            assertListsEqual(sortedBlockTransactions, decodedTransaction);
+        }
+        result.setSuccess(isListsEqual(sortedBlockTransactions, decodedTransaction));
         return result;
+    }
+
+    private boolean isListsEqual(List<Transaction> sortedBlockTransactions, List<Transaction> decodedTransaction) {
+        if (sortedBlockTransactions == null && decodedTransaction == null) {
+            return true;
+        }
+        if (sortedBlockTransactions == null || decodedTransaction == null) {
+            return false;
+        }
+        if (sortedBlockTransactions.size() != decodedTransaction.size()) {
+            return false;
+        }
+        for (int i = 0; i < sortedBlockTransactions.size(); i++) {
+            if (!sortedBlockTransactions.get(i).equals(decodedTransaction.get(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void assertListsEqual(List expected, List actual) {
